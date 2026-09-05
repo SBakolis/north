@@ -30,7 +30,12 @@ Select the optional **OpenSpec CLI** checkbox to install OpenSpec if it is missi
 or run `./install.sh --all --openspec`. The installer checks for an existing CLI
 first; installation uses npm and requires Node.js 20.19.0+.
 
-Your existing `AGENTS.md` is saved as `AGENTS-backup.md`. Run `./install.sh` again
+Select **Merge installations** (or run `./install.sh --merge`) to merge North's
+configuration into existing `opencode.json` / `opencode.jsonc` files and keep your
+`AGENTS.md` active. Nested settings are combined, arrays such as `plugin` are
+extended without duplicate entries, and existing settings and JSONC comments are preserved.
+
+Without merging, your existing `AGENTS.md` is saved as `AGENTS-backup.md`. Run `./install.sh` again
 to enable or disable skills, or press `u` to uninstall North and restore that
 backup. Keep the checkout in place because the installed links point into it.
 

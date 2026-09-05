@@ -209,6 +209,35 @@ run --skills explain-code
 run --uninstall
 [ ! -e "$config/AGENTS.md" ]
 
+# Merge opt-in and remembered mode use the same CLI path as the TUI.
+config_root="$tmp/merge config"
+config=$config_root/opencode
+mkdir -p "$config"
+printf 'my instructions\n' > "$config/AGENTS.md"
+printf '{"model":"custom"}\n' > "$config/opencode.json"
+printf '{\n// keep this comment\n"plugin":["my-plugin",],\n}\n' > "$config/opencode.jsonc"
+cp "$config/opencode.json" "$tmp/original.json"
+cp "$config/opencode.jsonc" "$tmp/original.jsonc"
+run --skills explain-code
+cmp "$config/opencode.json" "$tmp/original.json"
+run --merge
+[ "$(cat "$config/AGENTS.md")" = 'my instructions' ]
+[ ! -L "$config/AGENTS.md" ]
+[ ! -e "$config/AGENTS-backup.md" ]
+[ -L "$config/skills/explain-code" ]
+[ ! -e "$config/skills/unity-ui" ]
+grep -q 'assets/instructions/core.md' "$config/opencode.json"
+grep -q 'assets/instructions/core.md' "$config/opencode.jsonc"
+grep -q '// keep this comment' "$config/opencode.jsonc"
+cp "$config/opencode.jsonc" "$tmp/merged.jsonc"
+run --skills explain-code
+cmp "$config/opencode.jsonc" "$tmp/merged.jsonc"
+fail --merge --uninstall
+run --uninstall
+cmp "$config/opencode.json" "$tmp/original.json"
+cmp "$config/opencode.jsonc" "$tmp/original.jsonc"
+[ "$(cat "$config/AGENTS.md")" = 'my instructions' ]
+
 # OpenSpec uses isolated command stubs: tests never install global packages.
 mock_bin="$tmp/mock bin"
 mkdir "$mock_bin"

@@ -57,6 +57,9 @@ The installer creates symlinks under
 | `skills/auto-commit` (Auto commit checked) | `assets/skills/auto-commit/` |
 | `skills/commit` (Auto commit unchecked) | `assets/skills/commit/` |
 
+With **Merge installations** enabled, `AGENTS.md` stays in place; North's shared
+instructions are loaded through the configuration's `instructions` array instead.
+
 Each skill directory contains a `SKILL.md`. The installer discovers bundled
 skills automatically and links each enabled directory separately, treating the
 two commit skills as mutually exclusive modes of one option. Unrelated
@@ -77,7 +80,40 @@ installation. The command is included even when all optional skills are disabled
 
 ## Existing instructions and conflicts
 
-Before linking North's instructions, the installer renames an existing
+The optional **Merge installations** checkbox starts unchecked and remembers your
+choice on later runs. Enable it to combine North with an existing OpenCode setup
+in `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`. The installer detects `opencode.json`
+and `opencode.jsonc`, merges into each existing file, or creates `opencode.json`
+if neither exists. It preserves JSONC comments and unrelated formatting.
+
+North's defaults come from `assets/opencode.json`; the installer also adds the
+absolute path to North's shared instructions. Objects merge recursively, missing
+settings are added, and arrays (including `plugin` and `instructions`) are extended
+with unique entries. Existing scalar values win conflicts. This supports future
+bundled plugins by adding their entries to the `plugin` array in North's config;
+no plugins are bundled yet. OpenCode loads configured plugins itself.
+
+Merge mode leaves your `AGENTS.md` active alongside North's instructions, as
+described in [OpenCode's custom instructions documentation](https://opencode.ai/docs/rules/#custom-instructions).
+Switching an existing North installation to merge mode restores its saved
+`AGENTS-backup.md`. Unchecking merge removes North's config additions and switches
+back to the instruction link and backup behavior described below.
+
+Configuration changes are part of the installation transaction. Invalid JSON/JSONC,
+duplicate object keys, incompatible `instructions`/`plugin` types, and configuration
+symlinks or directory conflicts stop the merge before changes are applied. The
+installer saves original and merged text in `.north-installation.json` with
+owner-only permissions. Keep this state file for updates and uninstall; it can
+contain private settings from your configuration.
+
+Reruns update North's additions without accumulating duplicates. Uninstall restores
+an untouched config exactly, including comments and formatting, or deletes a config
+created solely for North. If you edit it afterward, uninstall removes only matching
+North additions and retains your later settings and plugins. Comment-only edits
+also retain the file. Existing agent, command, and skill filename conflicts still
+follow the checks below.
+
+Without merge mode, before linking North's instructions, the installer renames an existing
 `AGENTS.md` to `AGENTS-backup.md` in the same OpenCode configuration directory.
 This preserves the original file, or the original symlink including its target.
 North's instructions are active while installed; the backup is retained for
@@ -97,7 +133,7 @@ before switching; the installer will not delete it.
 The installer records link ownership and whether it created a backup in
 `.north-installation.json`. Keep this file and `AGENTS-backup.md` until uninstall.
 A lock prevents simultaneous installers from changing the same installation.
-Detected failures roll back completed link and backup changes. If a process is
+Detected failures roll back completed configuration, link, and backup changes. If a process is
 forcibly terminated, inspect the links, backup, and state before retrying; remove
 a stale `.north-install.lock` directory only when no installer is running.
 
@@ -137,6 +173,8 @@ select an action using the same installation logic:
 ./install.sh --all                         # Enable all options, including Auto commit
 ./install.sh --all --openspec              # Also install OpenSpec if missing
 ./install.sh --openspec                    # Keep skill selection; ensure OpenSpec
+./install.sh --merge                       # Keep skills; merge existing OpenCode config
+./install.sh --all --merge --openspec       # Merge config and also ensure OpenSpec
 ./install.sh --skills explain-code,unity-ui # These skills plus confirmation-based commit
 ./install.sh --skills explain-code,auto-commit # Explain code with Auto commit enabled
 ./install.sh --skills ''                   # Only commit; keep shared instructions/agents
@@ -144,13 +182,16 @@ select an action using the same installation logic:
 ./install.sh --help
 ```
 
-`--openspec` can be combined with `--all` or `--skills`, but not `--uninstall`.
+`--openspec` and `--merge` can be combined with each other, `--all`, or `--skills`,
+but not `--uninstall`. Either used alone preserves the current skill selection
+(all skills on first install). Once enabled, merge mode persists for unattended
+updates; uncheck it in the TUI to return to the default installation mode.
 For `--skills`, including `auto-commit` checks Auto commit; omitting it selects
 `commit`. Explicit `commit` is also accepted; requesting both modes is an error.
-Used alone on first installation, it enables all bundled skills. `--all` by
-itself only selects bundled skills and does not install OpenSpec.
+`--all` by itself only selects bundled skills; it does not enable merge mode on
+first installation or install OpenSpec.
 
-The installer does not edit `opencode.json` or install plugins. OpenCode documents
+Without merge mode, the installer leaves OpenCode JSON configuration untouched. OpenCode documents
 [agent discovery](https://opencode.ai/docs/agents/),
 [skills](https://opencode.ai/docs/skills/), and
 [global instructions](https://opencode.ai/docs/rules/).

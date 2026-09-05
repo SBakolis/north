@@ -18,6 +18,7 @@ pub enum Action {
     Apply {
         skills: Option<BTreeSet<String>>,
         openspec: bool,
+        merge: bool,
     },
     Uninstall,
     Cancel,
@@ -26,6 +27,7 @@ pub enum Action {
 pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::Result<Action> {
     let mut selected = installation.selected_skills();
     let mut openspec = false;
+    let mut merge = installation.merging();
     let mut list = ListState::default().with_selected(Some(0));
     let mut confirming_uninstall = false;
     loop {
@@ -37,6 +39,7 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
                 &mut list,
                 confirming_uninstall,
                 openspec,
+                merge,
             )
         })?;
         let Event::Key(key) = event::read()? else {
@@ -58,7 +61,7 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
             }
             continue;
         }
-        let count = installation.skills.len() + 1;
+        let count = installation.skills.len() + 2;
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return Ok(Action::Cancel),
             KeyCode::Down | KeyCode::Char('j') if count > 0 => {
@@ -72,6 +75,10 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
                     openspec = !openspec;
                     continue;
                 }
+                if list.selected() == Some(installation.skills.len() + 1) {
+                    merge = !merge;
+                    continue;
+                }
                 let name = &installation.skills[list.selected().unwrap_or(0)];
                 if !selected.remove(name) {
                     selected.insert(name.clone());
@@ -83,6 +90,7 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
                 return Ok(Action::Apply {
                     skills: Some(selected),
                     openspec,
+                    merge,
                 });
             }
             KeyCode::Char('u') if installation.installed() => confirming_uninstall = true,
@@ -98,8 +106,10 @@ fn render(
     list: &mut ListState,
     confirming: bool,
     openspec: bool,
+    merge: bool,
 ) {
-    let full_banner = frame.area().height >= 20
+    // Keep both installation options visible in a standard 80x24 terminal.
+    let full_banner = usize::from(frame.area().height) >= 19 + installation.skills.len()
         && usize::from(frame.area().width) >= NORTH_BANNER.lines().map(str::len).max().unwrap_or(0);
     let [banner, header, body, footer] = Layout::vertical([
         Constraint::Length(if full_banner { 5 } else { 1 }),
@@ -124,8 +134,13 @@ fn render(
         " North / Install "
     };
     let intro = format!(
-        "{}\nChoose skills to enable. Shared instructions and North agents are included.\nExisting AGENTS.md is saved as AGENTS-backup.md on first installation.",
-        installation.config.display()
+        "{}\nChoose skills to enable. Shared instructions and North agents are included.\n{}",
+        installation.config.display(),
+        if merge {
+            "Merge: keep AGENTS.md and combine existing OpenCode settings with North."
+        } else {
+            "Existing AGENTS.md is saved as AGENTS-backup.md on first installation."
+        }
     );
     frame.render_widget(
         Paragraph::new(intro)
@@ -152,10 +167,14 @@ fn render(
         "[{}] OpenSpec CLI (install if missing; npm global)",
         if openspec { "x" } else { " " }
     )));
+    items.push(ListItem::new(format!(
+        "[{}] Merge installations (opencode.json / opencode.jsonc)",
+        if merge { "x" } else { " " }
+    )));
     frame.render_stateful_widget(
         List::new(items)
             .block(Block::bordered().title(format!(
-                " Skills / {} enabled + optional OpenSpec ",
+                " Skills / {} enabled + installation options ",
                 installation.resolved_skills(selected).map_or(selected.len(), |skills| skills.len())
             )))
             .highlight_style(
@@ -168,7 +187,7 @@ fn render(
         list,
     );
     let help = if confirming {
-        "Uninstall North and restore your original AGENTS.md?\nPress y to uninstall; n or Esc to return. Other OpenCode files are preserved."
+        "Uninstall North and undo its instructions/config additions?\nPress y to uninstall; n or Esc to return. Your settings are preserved."
     } else if installation.installed() {
         "Up/Down or j/k: move   Space: toggle   a/n: all/no skill options\nEnter: save changes   u: uninstall North   q/Esc: quit without changes\nAuto commit: on commits automatically; off waits for your go-ahead."
     } else {
@@ -215,6 +234,7 @@ mod tests {
                             &mut ListState::default().with_selected(Some(0)),
                             confirming,
                             true,
+                            true,
                         )
                     })
                     .unwrap();
@@ -231,6 +251,9 @@ mod tests {
                     assert!(!text.contains("[x] commit"));
                     assert!(!text.contains("[x] auto-commit"));
                     assert!(text.contains("[x] OpenSpec CLI (install if missing; npm global)"));
+                    assert!(
+                        text.contains("[x] Merge installations (opencode.json / opencode.jsonc)")
+                    );
                     assert!(text.contains(if confirming {
                         "Confirm uninstall"
                     } else {
@@ -256,6 +279,7 @@ mod tests {
                     &installation,
                     &BTreeSet::new(),
                     &mut ListState::default().with_selected(Some(0)),
+                    false,
                     false,
                     false,
                 )
