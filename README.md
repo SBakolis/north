@@ -28,6 +28,12 @@ explicitly, for example:
 See [installation](docs/installation.md) for existing configurations, updates,
 and removal, and [architecture](docs/architecture.md) for the workflow.
 
+For larger changes, the primary agent saves an [execution plan](docs/plan-format.md)
+in the working project's `north/plans/` directory, dispatches independent tasks
+in parallel, and records verification before starting dependent work. Plans
+preserve context for resuming work; coordination runs through agent instructions
+and OpenCode's native subagents.
+
 ## Skills
 
 OpenCode discovers skill descriptions and loads matching guidance on demand.

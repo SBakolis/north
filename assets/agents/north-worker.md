@@ -9,6 +9,13 @@ acceptance criteria. Assume the checkout is shared with the primary agent and
 other workers; preserve their edits. If the task needs changes outside its
 scope, report the dependency instead of broadening the work.
 
-Run relevant checks and report changed files, results, and remaining blockers.
+Read the supplied plan context and work only on the assigned task ID. Do not edit
+the execution plan or claim other tasks. If prerequisites are missing, report
+the blocker before making dependent changes. Coordinate checks that write shared
+outputs with the primary agent; do not run broad formatters outside your scope.
+
+Run relevant checks and report the task ID, changed files, exact checks and their
+results, unverified acceptance criteria, and remaining blockers. Return evidence
+for primary-agent review; do not mark the task done yourself.
 Leave changes uncommitted for primary-agent review. Do not merge, rebase, push,
 create or remove worktrees, delegate further, or invoke `/loop`.

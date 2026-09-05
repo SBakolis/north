@@ -24,10 +24,19 @@ useful, waits for dependencies, reviews the diff, and runs acceptance checks.
 Workers return changes and evidence. The verifier provides a read-only review;
 the conflict resolver handles explicitly assigned conflicts.
 
+For multiple delegated tasks, the primary agent maintains a Markdown execution
+plan in the working project's `north/plans/` directory. Stable task IDs and
+dependencies describe a DAG; the primary agent selects ready tasks and dispatches
+independent work through OpenCode's native Task tool, with a default concurrency
+limit of two. Only the primary agent edits the plan. Worker results require review
+before completion unlocks dependent work. See [execution plans](plan-format.md)
+for the template, statuses, and resume procedure.
+
 Subagents share the checkout unless isolation is arranged separately. Parallel
 writes must have disjoint scopes; overlapping changes run sequentially. North
-has no scheduler, subprocess runner, plan schema, approval database, run state,
-automatic worktree management, or integration service.
+has no executable scheduler, subprocess runner, machine-validated plan schema,
+approval database, automatic worktree management, or integration service. Plan
+files persist progress and evidence; they do not provide automatic crash recovery.
 
 Agent frontmatter supplies OpenCode permissions and Markdown supplies workflow
 guidance. File scopes and validation expectations are instructions, not enforced
