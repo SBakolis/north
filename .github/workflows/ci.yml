@@ -15,7 +15,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - name: Check shell syntax
         run: sh -n install.sh tests/install.sh
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path installer/Cargo.toml --check
+      - name: Lint installer
+        run: cargo clippy --locked --manifest-path installer/Cargo.toml --all-targets -- -D warnings
+      - name: Test installer safeguards and UI
+        run: cargo test --locked --manifest-path installer/Cargo.toml
       - name: Test installation
         run: sh tests/install.sh

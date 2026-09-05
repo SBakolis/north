@@ -1,6 +1,10 @@
 # Permissions and ownership
 
-Installation creates symlinks into this checkout and refuses conflicting files.
+Installation creates symlinks into this checkout. It saves existing instructions
+as `AGENTS-backup.md` before replacing `AGENTS.md`, refuses other conflicting
+files, and never overwrites an existing backup. Uninstall removes only matching
+North links and restores the saved instructions. Keep the backup and
+`.north-installation.json` in the OpenCode configuration directory until removal.
 Review changes to the linked instructions when updating the checkout: those
 changes become available to OpenCode without another installation step.
 

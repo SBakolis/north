@@ -20,10 +20,15 @@ Clone this repository to a permanent location, then run:
 ./install.sh
 ```
 
-The script symlinks shared instructions, four subagents, and skill directories into
-`${XDG_CONFIG_HOME:-$HOME/.config}/opencode`. It requires a POSIX shell and standard
-Unix utilities, creates no runtime state, and does not overwrite existing files.
-Keep the checkout in place because the links point directly into it.
+The script builds and opens a small Ratatui installer. It requires a POSIX shell
+and Rust/Cargo (Rust 1.88+); the first build downloads its dependencies. Use
+Up/Down and Space to choose the starting skills, then Enter to install shared
+instructions, four subagents, and the selected skills into
+`${XDG_CONFIG_HOME:-$HOME/.config}/opencode`.
+
+Your existing `AGENTS.md` is saved as `AGENTS-backup.md`. Run `./install.sh` again
+to enable or disable skills, or press `u` to uninstall North and restore that
+backup. Keep the checkout in place because the installed links point into it.
 
 Start a new OpenCode session and ask for your change normally. The shared
 instructions guide delegation for larger tasks. You can also invoke an agent
@@ -59,4 +64,4 @@ OpenCode discovers skill descriptions and loads matching guidance on demand.
 North reads applicable generated preference skills on later tasks. These records
 are project-local; the kit checkout is not a shared store for every project.
 Implementation files and explicitly located deliverables keep their required
-locations. Rerun `./install.sh` after updating to link newly added bundled skills.
+locations. Rerun `./install.sh` after updating to choose newly added bundled skills.

@@ -3,76 +3,155 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 tmp=$(mktemp -d)
+tmp=$(CDPATH= cd -- "$tmp" && pwd -P)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
-export HOME="$tmp/home"
-export XDG_CONFIG_HOME="$tmp/config with spaces"
-config=$XDG_CONFIG_HOME/opencode
+cargo build --quiet --locked --manifest-path "$root/installer/Cargo.toml"
+binary=${CARGO_TARGET_DIR:-"$root/installer/target"}/debug/north-installer
+config_root="$tmp/config with spaces"
+config=$config_root/opencode
+run() {
+    env XDG_CONFIG_HOME="$config_root" "$binary" --repo "$root" "$@"
+}
+fail() {
+    if run "$@"; then
+        printf 'Expected failure: %s\n' "$*" >&2
+        exit 1
+    fi
+}
 
-# Install from another working directory, then repeat without modifying links.
+# The shell entry point works from another directory and forwards its arguments.
 cd "$tmp"
-sh "$root/install.sh"
-sh "$root/install.sh"
+env XDG_CONFIG_HOME="$config_root" sh "$root/install.sh" --all
+run --all
 [ "$(readlink "$config/AGENTS.md")" = "$root/assets/instructions/core.md" ]
 for source in "$root"/assets/agents/*.md; do
-    target=$config/agents/$(basename "$source")
-    [ "$(readlink "$target")" = "$source" ]
-    cmp "$source" "$target"
+    [ "$(readlink "$config/agents/$(basename "$source")")" = "$source" ]
 done
 for source in "$root"/assets/skills/*; do
-    target=$config/skills/$(basename "$source")
-    [ "$(readlink "$target")" = "$source" ]
-    cmp "$source/SKILL.md" "$target/SKILL.md"
+    [ "$(readlink "$config/skills/$(basename "$source")")" = "$source" ]
 done
 
-# Existing skill directories must survive, with no partial installation.
+# Reruns link and unlink exactly the requested skills.
+run --skills explain-code
+[ -L "$config/skills/explain-code" ]
+[ ! -e "$config/skills/unity-ui" ]
+run --skills ''
+[ ! -e "$config/skills/explain-code" ]
+run --skills unity-ui
+[ -L "$config/skills/unity-ui" ]
+fail --skills unknown-skill
+[ -L "$config/skills/unity-ui" ]
+fail --all --uninstall
+fail < /dev/null
+run --uninstall
+[ ! -e "$config/AGENTS.md" ]
+[ ! -e "$config/.north-installation.json" ]
+run --uninstall
+
+# Preserve the exact original instructions through repeated configuration changes.
+printf 'original instructions\n' > "$config/AGENTS.md"
+run --all
+[ "$(cat "$config/AGENTS-backup.md")" = 'original instructions' ]
+run --skills explain-code
+[ "$(cat "$config/AGENTS-backup.md")" = 'original instructions' ]
+mkdir -p "$config/skills/custom"
+printf 'custom skill\n' > "$config/skills/custom/SKILL.md"
+# A user replacement for an owned skill is never removed by uninstall.
+rm "$config/skills/explain-code"
+mkdir "$config/skills/explain-code"
+printf 'replacement\n' > "$config/skills/explain-code/SKILL.md"
+run --uninstall
+[ "$(cat "$config/AGENTS.md")" = 'original instructions' ]
+[ ! -e "$config/AGENTS-backup.md" ]
+[ "$(cat "$config/skills/custom/SKILL.md")" = 'custom skill' ]
+[ "$(cat "$config/skills/explain-code/SKILL.md")" = 'replacement' ]
+
+# Preflight catches late conflicts before touching AGENTS.md or its backup.
 rm -rf "$config"
 mkdir -p "$config/skills/unity-ui"
-printf 'custom skill\n' > "$config/skills/unity-ui/SKILL.md"
-if sh "$root/install.sh"; then exit 1; fi
-[ ! -e "$config/AGENTS.md" ]
-[ ! -d "$config/agents" ]
-[ "$(cat "$config/skills/unity-ui/SKILL.md")" = 'custom skill' ]
+printf 'original\n' > "$config/AGENTS.md"
+printf 'custom\n' > "$config/skills/unity-ui/SKILL.md"
+fail --all
+[ "$(cat "$config/AGENTS.md")" = 'original' ]
+[ ! -e "$config/AGENTS-backup.md" ]
+[ ! -e "$config/agents" ]
+# A disabled conflicting skill can be left in place.
+run --skills explain-code
+[ "$(cat "$config/skills/unity-ui/SKILL.md")" = 'custom' ]
+run --uninstall
 
-# Unrelated skills remain intact during a successful install.
-rm -rf "$config/skills/unity-ui"
-mkdir -p "$config/skills/custom"
-printf 'unrelated skill\n' > "$config/skills/custom/SKILL.md"
-sh "$root/install.sh"
-[ "$(cat "$config/skills/custom/SKILL.md")" = 'unrelated skill' ]
+# An existing backup is never overwritten, including a dangling symlink.
+ln -s "$tmp/missing-backup" "$config/AGENTS-backup.md"
+fail --skills ''
+[ "$(readlink "$config/AGENTS-backup.md")" = "$tmp/missing-backup" ]
+rm "$config/AGENTS-backup.md"
 
-# A late conflict must prevent even the first link from being installed.
+# Original symlinks (even dangling ones) are restored as symlinks.
+rm "$config/AGENTS.md"
+ln -s ../missing-original "$config/AGENTS.md"
+run --skills ''
+[ "$(readlink "$config/AGENTS-backup.md")" = '../missing-original' ]
+run --uninstall
+[ "$(readlink "$config/AGENTS.md")" = '../missing-original' ]
+rm "$config/AGENTS.md"
+
+# Changed instructions or missing backups block restoration without partial removal.
+printf 'original\n' > "$config/AGENTS.md"
+run --skills explain-code
+rm "$config/AGENTS.md"
+printf 'new user instructions\n' > "$config/AGENTS.md"
+fail --uninstall
+[ -L "$config/agents/north-worker.md" ]
+[ "$(cat "$config/AGENTS-backup.md")" = 'original' ]
+rm "$config/AGENTS.md"
+mv "$config/AGENTS-backup.md" "$tmp/saved-backup"
+fail --uninstall
+fail --skills ''
+[ -L "$config/skills/explain-code" ]
+mv "$tmp/saved-backup" "$config/AGENTS-backup.md"
+run --uninstall
+[ "$(cat "$config/AGENTS.md")" = 'original' ]
+
+# Protect directory conflicts and prevent traversing skill-directory symlinks.
 rm -rf "$config"
+mkdir -p "$config/AGENTS.md"
+fail --all
+rmdir "$config/AGENTS.md"
+mkdir "$tmp/foreign-skills"
+ln -s "$tmp/foreign-skills" "$config/skills"
+fail --all
+[ ! -e "$tmp/foreign-skills/explain-code" ]
+rm "$config/skills"
 mkdir -p "$config/agents"
 printf 'custom agent\n' > "$config/agents/north-worker.md"
-if sh "$root/install.sh"; then exit 1; fi
+fail --all
 [ ! -e "$config/AGENTS.md" ]
-[ "$(cat "$config/agents/north-worker.md")" = 'custom agent' ]
 
-# Broken symlinks and existing instruction files are also preserved.
-rm -rf "$config"
-mkdir -p "$config"
-ln -s "$tmp/missing" "$config/AGENTS.md"
-if sh "$root/install.sh"; then exit 1; fi
-[ "$(readlink "$config/AGENTS.md")" = "$tmp/missing" ]
-rm "$config/AGENTS.md"
-printf 'custom instructions\n' > "$config/AGENTS.md"
-if sh "$root/install.sh"; then exit 1; fi
-[ "$(cat "$config/AGENTS.md")" = 'custom instructions' ]
-[ ! -d "$config/agents" ]
-
-# Reject relative XDG roots, and honor HOME when XDG is unset.
-export XDG_CONFIG_HOME=relative
-if sh "$root/install.sh"; then exit 1; fi
+# Reject relative XDG roots, and honor HOME when XDG is unset or empty.
+if env XDG_CONFIG_HOME=relative "$binary" --repo "$root" --all; then exit 1; fi
 [ ! -e relative ]
-unset XDG_CONFIG_HOME
-sh "$root/install.sh"
-[ -L "$HOME/.config/opencode/AGENTS.md" ]
+env -u XDG_CONFIG_HOME HOME="$tmp/home" "$binary" --repo "$root" --all
+[ -L "$tmp/home/.config/opencode/AGENTS.md" ]
+env XDG_CONFIG_HOME='' HOME="$tmp/home" "$binary" --repo "$root" --uninstall
+[ ! -e "$tmp/home/.config/opencode/AGENTS.md" ]
 
-# Source paths can contain spaces too.
-mkdir -p "$tmp/source with spaces"
-cp "$root/install.sh" "$tmp/source with spaces/"
+# Source paths with spaces and relocation are supported using tracked old targets.
+mkdir "$tmp/source with spaces"
 cp -R "$root/assets" "$tmp/source with spaces/"
-export XDG_CONFIG_HOME="$tmp/other config"
-sh "$tmp/source with spaces/install.sh"
-cmp "$root/assets/instructions/core.md" "$XDG_CONFIG_HOME/opencode/AGENTS.md"
+config_root="$tmp/relocation config"
+config=$config_root/opencode
+run --all
+env XDG_CONFIG_HOME="$config_root" "$binary" --repo "$tmp/source with spaces" --skills explain-code
+[ "$(readlink "$config/skills/explain-code")" = "$tmp/source with spaces/assets/skills/explain-code" ]
+env XDG_CONFIG_HOME="$config_root" "$binary" --repo "$tmp/source with spaces" --uninstall
+[ ! -e "$config/AGENTS.md" ]
+
+# Links left by the original shell installer can be managed without a state file.
+mkdir -p "$config/skills"
+ln -s "$root/assets/instructions/core.md" "$config/AGENTS.md"
+ln -s "$root/assets/skills/unity-ui" "$config/skills/unity-ui"
+run --skills explain-code
+[ ! -e "$config/skills/unity-ui" ]
+run --uninstall
+[ ! -e "$config/AGENTS.md" ]
 printf 'Installer checks passed\n'
