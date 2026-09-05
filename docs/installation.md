@@ -16,6 +16,8 @@ The installer creates these symlinks under
 | `agents/north-conflict-resolver.md` | `assets/agents/north-conflict-resolver.md` |
 | `skills/explain-code` | `assets/skills/explain-code/` |
 | `skills/unity-ui` | `assets/skills/unity-ui/` |
+| `skills/north-sources` | `assets/skills/north-sources/` |
+| `skills/dry-skillify` | `assets/skills/dry-skillify/` |
 
 Each skill directory contains a `SKILL.md` with a name, discovery description,
 and instructions. The installer links each directory separately, preserving

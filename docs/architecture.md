@@ -10,6 +10,15 @@ and descriptions and loads the full instructions through its native skill tool
 when relevant. Skills guide how an agent performs a task; subagents provide
 delegated execution. Both primary agents and subagents can use skills.
 
+The `north-sources` skill makes `<working-project>/north/` the persistent store
+for North's supporting artifacts and consults relevant saved context on each
+task. `dry-skillify` records user-supported preference observations in
+`north/dry/*.md` and promotes consistent patterns after three distinct instances
+into `north/skills/<name>/SKILL.md`. North reads matching generated skills directly;
+they do not need global installation. These are agent-driven Markdown workflows,
+not background monitoring. The primary agent consolidates shared records to
+avoid conflicting writes from subagents.
+
 The primary agent scopes the work, delegates planning or implementation when
 useful, waits for dependencies, reviews the diff, and runs acceptance checks.
 Workers return changes and evidence. The verifier provides a read-only review;

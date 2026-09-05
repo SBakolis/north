@@ -36,3 +36,13 @@ OpenCode discovers skill descriptions and loads matching guidance on demand.
   standard technical English with verified line references and symbol definitions.
 - [unity-ui](assets/skills/unity-ui/SKILL.md): author Unity UI in the Editor as
   saved, editable assets, with runtime scripts reserved for behavior and data.
+- [north-sources](assets/skills/north-sources/SKILL.md): consult and save North's
+  supporting output in each working project's `north/` directory.
+- [dry-skillify](assets/skills/dry-skillify/SKILL.md): record recurring user
+  preferences as Markdown in `north/dry/` and automatically create scoped skills
+  in `north/skills/` after three distinct user-supported observations.
+
+North reads applicable generated preference skills on later tasks. These records
+are project-local; the kit checkout is not a shared store for every project.
+Implementation files and explicitly located deliverables keep their required
+locations. Rerun `./install.sh` after updating to link newly added bundled skills.

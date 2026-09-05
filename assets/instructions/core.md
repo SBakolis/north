@@ -1,5 +1,11 @@
 # North
 
+At the start of each task, load `north-sources` and consult relevant saved context
+in the working project's `north/` directory, including applicable generated
+preference skills. Save North's supporting output there as the task progresses.
+When the user expresses or corrects a reusable working preference, load
+`dry-skillify` to record evidence and promote supported recurring patterns.
+
 Load relevant skills through OpenCode's native skill tool when their descriptions
 match the task. Skills supply task-specific guidance to primary agents and
 subagents; they do not require a separate execution process.
