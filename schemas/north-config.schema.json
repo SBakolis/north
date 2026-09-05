@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://north.dev/schemas/north-config.schema.json",
+  "title": "North Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind"],
+  "properties": {
+    "apiVersion": { "const": "north/v1alpha1" },
+    "kind": { "const": "NorthConfig" },
+    "installation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scope": { "const": "global", "default": "global" }
+      }
+    },
+    "parallelization": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "runtime": { "const": "opencode-cli", "default": "opencode-cli" },
+        "isolation": { "const": "git-worktree", "default": "git-worktree" },
+        "integration": { "const": "progressive", "default": "progressive" },
+        "maxParallel": { "type": "integer", "minimum": 1, "maximum": 64, "default": 4 },
+        "failFast": { "type": "boolean", "default": false },
+        "autoIntegrateTarget": { "type": "boolean", "default": false }
+      }
+    },
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "enum": ["none", "openspec"], "default": "none" }
+      }
+    },
+    "plugins": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "opencode-codex-meter": { "$ref": "#/$defs/plugin" },
+        "@sbakolis/open-loop": { "$ref": "#/$defs/plugin" }
+      }
+    }
+  },
+  "$defs": {
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false }
+      }
+    }
+  }
+}
