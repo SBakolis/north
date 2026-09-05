@@ -1,23 +1,25 @@
 # Architecture
 
-North separates kit composition from orchestration execution. The installer owns
-OpenCode configuration, North assets, backups, and ownership metadata. The Go
-runtime owns plan execution, worker isolation, verification, durable state, and
-integration.
+North consists of `install.sh`, shared instructions, four Markdown subagent
+definitions, and task-specific skills. Installation links these assets into OpenCode's global
+configuration. OpenCode loads the instructions and executes the subagents with
+its native Task tool.
 
-Core orchestration depends only on interfaces declared near the orchestration
-consumer. OpenCode, Git, filesystem state, verification, and OpenSpec packages
-implement those contracts from the outside. Adapter packages must not be imported
-by the orchestration core.
+Skills live in `assets/skills/<name>/SKILL.md`. OpenCode discovers their names
+and descriptions and loads the full instructions through its native skill tool
+when relevant. Skills guide how an agent performs a task; subagents provide
+delegated execution. Both primary agents and subagents can use skills.
 
-## Dependency Direction
+The primary agent scopes the work, delegates planning or implementation when
+useful, waits for dependencies, reviews the diff, and runs acceptance checks.
+Workers return changes and evidence. The verifier provides a read-only review;
+the conflict resolver handles explicitly assigned conflicts.
 
-```text
-CLI -> application composition -> orchestration contracts and core
-                                      ^
-                                      |
-                    concrete adapters implement contracts
-```
+Subagents share the checkout unless isolation is arranged separately. Parallel
+writes must have disjoint scopes; overlapping changes run sequentially. North
+has no scheduler, subprocess runner, plan schema, approval database, run state,
+automatic worktree management, or integration service.
 
-OpenSpec content is normalized into `knowledge.Snapshot`; OpenSpec-specific types
-never enter plans, scheduler state, or worker contracts.
+Agent frontmatter supplies OpenCode permissions and Markdown supplies workflow
+guidance. File scopes and validation expectations are instructions, not enforced
+filesystem boundaries. The primary agent remains responsible for checking work.
