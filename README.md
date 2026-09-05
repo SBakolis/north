@@ -1,4 +1,12 @@
-# North
+```text
+ _   _  ___  ____ _____ _   _
+| \ | |/ _ \|  _ \_   _| | | |
+|  \| | | | | |_) || | | |_| |
+| |\  | |_| |  _ < | | |  _  |
+|_| \_|\___/|_| \_\|_| |_| |_|
+```
+
+![North banner](assets/north.png)
 
 North is a small set of instructions, agent definitions, and skills for OpenCode.
 OpenCode provides subagent execution; the primary agent coordinates planning,
