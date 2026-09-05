@@ -6,20 +6,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/SBakolis/north/assets"
 	"github.com/SBakolis/north/internal/components"
+	"github.com/SBakolis/north/internal/config"
 	"github.com/SBakolis/north/internal/model"
 	"github.com/SBakolis/north/internal/platform"
 	"github.com/SBakolis/north/internal/plugins"
+	"gopkg.in/yaml.v3"
 )
 
 const manifestFilename = "install-manifest.json"
+const guardrailSHA256 = "1d59040d9c898de26ad5181c115a6035f88164475da8635762d37b648f1a4e55"
 
 type Options struct {
 	Paths          platform.Paths
@@ -34,6 +39,7 @@ type Options struct {
 	PluginFiles    plugins.Files
 	PluginPaths    plugins.Paths
 	Context        context.Context
+	AssetFS        fs.ReadFileFS
 }
 
 type PluginManager interface {
@@ -191,10 +197,14 @@ func Install(options Options) (result Result, returnErr error) {
 	}
 
 	var assetOperations []assetOperation
+	assetFS := options.AssetFS
+	if assetFS == nil {
+		assetFS = assets.FS
+	}
 	for _, component := range resolved {
 		for _, destination := range component.ManagedDestinations {
 			source := assetSource(destination)
-			data, err := assets.FS.ReadFile(source)
+			data, err := assetFS.ReadFile(source)
 			if err != nil {
 				return Result{}, fmt.Errorf("read embedded asset %s: %w", source, err)
 			}
@@ -208,11 +218,14 @@ func Install(options Options) (result Result, returnErr error) {
 		}
 	}
 	configPath := filepath.Join(options.Paths.ConfigDir, "config.yaml")
-	config := renderConfig(resolved)
+	configData := renderConfig(resolved)
+	if err := validateGeneratedInstall(configData, generated, assetOperations); err != nil {
+		return Result{}, err
+	}
 	if err := preflightNorthPaths(existing, configPath, assetOperations); err != nil {
 		return Result{}, err
 	}
-	manifest.ManagedFiles = append(manifest.ManagedFiles, ManagedFile{Path: configPath, Kind: "file", SHA256: FileSHA256(config)})
+	manifest.ManagedFiles = append(manifest.ManagedFiles, ManagedFile{Path: configPath, Kind: "file", SHA256: FileSHA256(configData)})
 	removedFiles, err := deselectedManagedFiles(existing, manifest.ManagedFiles)
 	if err != nil {
 		return Result{}, err
@@ -305,7 +318,7 @@ func Install(options Options) (result Result, returnErr error) {
 			instructionRecord.PrivateSnapshotPath = snapshot
 		}
 	}
-	if err := transaction.WriteFile(configPath, config, 0o600); err != nil {
+	if err := transaction.WriteFile(configPath, configData, 0o600); err != nil {
 		return result, err
 	}
 	if existing == nil && instructionRecord.SourcePath != "" {
@@ -383,6 +396,9 @@ func Install(options Options) (result Result, returnErr error) {
 		record := pluginManifest(action)
 		if previous := findPlugin(existing, module); previous != nil && !previous.PreExisting && action.PreExisting {
 			record.PreExisting = false
+			if record.Version == "" {
+				record.Version = previous.Version
+			}
 			record.Owned = append([]plugins.Ownership(nil), previous.Owned...)
 			record.Candidates = append([]PluginCandidateSnapshot(nil), previous.Candidates...)
 		}
@@ -398,6 +414,91 @@ func Install(options Options) (result Result, returnErr error) {
 	committed = true
 	result.Manifest = &manifest
 	return result, nil
+}
+
+func validateGeneratedInstall(configData, instructions []byte, operations []assetOperation) error {
+	if _, _, err := config.Parse(configData, config.Options{Strict: true}); err != nil {
+		return fmt.Errorf("validate generated North config: %w", err)
+	}
+	if !utf8.Valid(instructions) {
+		return errors.New("validate generated AGENTS.md: invalid UTF-8")
+	}
+	if _, _, err := managedBlockRange(instructions); err != nil {
+		return fmt.Errorf("validate generated AGENTS.md: %w", err)
+	}
+	for _, operation := range operations {
+		if !utf8.Valid(operation.data) || bytes.IndexByte(operation.data, 0) >= 0 {
+			return fmt.Errorf("validate generated asset %s: invalid text", operation.source)
+		}
+		switch {
+		case strings.HasPrefix(operation.source, "agents/"):
+			if err := validateAgentAsset(operation.data); err != nil {
+				return fmt.Errorf("validate generated asset %s: %w", operation.source, err)
+			}
+		case strings.HasPrefix(operation.source, "hooks/"):
+			if FileSHA256(operation.data) != guardrailSHA256 {
+				return fmt.Errorf("validate generated asset %s: content does not match the audited hook", operation.source)
+			}
+			for _, required := range [][]byte{[]byte(`export const NorthGuardrails`), []byte(`"tool.execute.before"`), []byte(`NORTH_ACTIVE`)} {
+				if !bytes.Contains(operation.data, required) {
+					return fmt.Errorf("validate generated asset %s: missing %q", operation.source, required)
+				}
+			}
+		default:
+			return fmt.Errorf("validate generated asset %s: unsupported asset kind", operation.source)
+		}
+	}
+	return nil
+}
+
+func validateAgentAsset(data []byte) error {
+	if !bytes.HasPrefix(data, []byte("---\n")) {
+		return errors.New("missing YAML front matter")
+	}
+	end := bytes.Index(data[4:], []byte("\n---\n"))
+	if end < 0 {
+		return errors.New("unterminated YAML front matter")
+	}
+	var metadata struct {
+		Description string         `yaml:"description"`
+		Mode        string         `yaml:"mode"`
+		Permission  map[string]any `yaml:"permission"`
+	}
+	if err := yaml.Unmarshal(data[4:4+end], &metadata); err != nil {
+		return fmt.Errorf("parse YAML front matter: %w", err)
+	}
+	if metadata.Description == "" || metadata.Mode != "subagent" || len(metadata.Permission) == 0 {
+		return errors.New("front matter requires description, subagent mode, and permission")
+	}
+	if err := validatePermissionActions(metadata.Permission); err != nil {
+		return err
+	}
+	body := bytes.TrimSpace(data[4+end+5:])
+	if len(body) == 0 {
+		return errors.New("agent instructions are empty")
+	}
+	return nil
+}
+
+func validatePermissionActions(value map[string]any) error {
+	for key, action := range value {
+		switch typed := action.(type) {
+		case string:
+			if typed != "allow" && typed != "ask" && typed != "deny" {
+				return fmt.Errorf("permission %s has invalid action %q", key, typed)
+			}
+		case map[string]any:
+			if len(typed) == 0 {
+				return fmt.Errorf("permission %s has no rules", key)
+			}
+			if err := validatePermissionActions(typed); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("permission %s has invalid value", key)
+		}
+	}
+	return nil
 }
 
 func deselectedManagedFiles(existing *Manifest, current []ManagedFile) ([]ManagedFile, error) {
@@ -616,7 +717,7 @@ func pluginRuntime(paths platform.Paths, manager PluginManager, files plugins.Fi
 }
 
 func pluginManifest(action plugins.Action) PluginManifest {
-	record := PluginManifest{Module: action.Module, PreExisting: action.PreExisting, Owned: append([]plugins.Ownership(nil), action.Owned...)}
+	record := PluginManifest{Module: action.Module, Version: action.Version, PreExisting: action.PreExisting, Owned: append([]plugins.Ownership(nil), action.Owned...)}
 	for _, snapshot := range action.Before {
 		record.Candidates = append(record.Candidates, PluginCandidateSnapshot{Path: snapshot.Path, Role: snapshot.Role, Exists: snapshot.Exists, Data: append([]byte(nil), snapshot.Data...)})
 	}

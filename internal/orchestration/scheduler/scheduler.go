@@ -165,11 +165,8 @@ func (s *Scheduler) Resume(ctx context.Context, runID string) (Result, error) {
 		return Result{Run: run}, err
 	}
 	if run.Status == model.RunFailed && run.Failure != nil && run.Failure.Class == "final-verification" && run.Failure.Retryable {
-		if err := orchestration.TransitionRun(&run, model.RunRunning, s.config.Now()); err != nil {
-			return Result{Run: run}, err
-		}
 		run.Failure = nil
-		if err := s.config.Store.UpdateRun(ctx, run); err != nil {
+		if err := s.persistRunTransition(ctx, &run, model.RunRunning); err != nil {
 			return Result{Run: run}, err
 		}
 	}
@@ -189,7 +186,7 @@ func (s *Scheduler) Resume(ctx context.Context, runID string) (Result, error) {
 				return Result{Run: run}, err
 			}
 			run.Stages[i].Failure = &model.StageFailure{Class: "interrupted", Message: "attempt budget exhausted while recovering from " + string(from), Retryable: false}
-			if err := s.persistStage(ctx, run.ID, run.Stages[i], from); err != nil {
+			if err := s.persistStoredStageTransition(ctx, &run, i, from); err != nil {
 				return Result{Run: run}, err
 			}
 			continue
@@ -203,7 +200,7 @@ func (s *Scheduler) Resume(ctx context.Context, runID string) (Result, error) {
 			return Result{Run: run}, err
 		}
 		run.Stages[i].Failure = &model.StageFailure{Class: "interrupted", Message: "orphaned while " + string(from), Retryable: true}
-		if err := s.persistStage(ctx, run.ID, run.Stages[i], from); err != nil {
+		if err := s.persistStoredStageTransition(ctx, &run, i, from); err != nil {
 			return Result{Run: run}, err
 		}
 		if to == model.StageRetryScheduled {
@@ -211,7 +208,7 @@ func (s *Scheduler) Resume(ctx context.Context, runID string) (Result, error) {
 			if err := orchestration.TransitionStage(&run.Stages[i], model.StageReady, s.config.Now()); err != nil {
 				return Result{Run: run}, err
 			}
-			if err := s.persistStage(ctx, run.ID, run.Stages[i], retryFrom); err != nil {
+			if err := s.persistStoredStageTransition(ctx, &run, i, retryFrom); err != nil {
 				return Result{Run: run}, err
 			}
 		}
@@ -341,7 +338,8 @@ func (s *Scheduler) execute(parent context.Context, run model.RunState) (Result,
 			if err != nil {
 				return s.result(exec), err
 			}
-			if persisted.Cancellation != nil && !s.cancelRequested(exec) {
+			syncStoredHolds(exec, persisted)
+			if persisted.Cancellation != nil {
 				exec.mu.Lock()
 				exec.run.Cancellation = persisted.Cancellation
 				exec.mu.Unlock()
@@ -356,6 +354,18 @@ func (s *Scheduler) execute(parent context.Context, run model.RunState) (Result,
 	}
 }
 
+func syncStoredHolds(exec *execution, persisted model.RunState) {
+	exec.mu.Lock()
+	defer exec.mu.Unlock()
+	for _, stored := range persisted.Stages {
+		index := stageIndex(exec.run.Stages, stored.ID)
+		if index >= 0 && exec.run.Stages[index].Status == stored.Status && !orchestration.IsActiveStage(stored.Status) {
+			exec.run.Stages[index].Held = stored.Held
+			exec.run.Stages[index].HoldReason = stored.HoldReason
+		}
+	}
+}
+
 func (s *Scheduler) runAttempt(ctx context.Context, exec *execution, stageID string) workerResult {
 	stage, stageState, ok := stageAndState(exec, stageID)
 	if !ok {
@@ -363,6 +373,9 @@ func (s *Scheduler) runAttempt(ctx context.Context, exec *execution, stageID str
 	}
 	if err := ctx.Err(); err != nil {
 		return s.cancelStage(exec, stageID, err.Error())
+	}
+	if stageState.Status == model.StagePostMergeVerifying {
+		return s.verifyIntegratedStage(ctx, exec, stage, orchestration.Workspace{Path: stageState.Workspace, Branch: stageState.Branch}, stageState.CommitSHA, nil)
 	}
 	if stageState.CommitSHA != "" {
 		return s.integrateCommit(ctx, exec, stage, orchestration.Workspace{Path: stageState.Workspace, Branch: stageState.Branch}, stageState.CommitSHA)
@@ -490,15 +503,11 @@ func (s *Scheduler) integrateCommit(ctx context.Context, exec *execution, stage 
 						return workerResult{stageID: stageID, failed: true}
 					}
 					sha = resolution.CommitSHA
-					if err := s.completeStageMerge(ctx, exec, stageID, sha, func(st *model.StageState) {
+					return s.verifyIntegratedStage(ctx, exec, stage, workspace, sha, func(st *model.StageState) {
 						st.CommitSHA = sha
 						st.ConflictingPaths = model.NewStringList(integration.ConflictingPaths)
 						st.Evidence = model.NewStringList(append(st.Evidence.Values(), resolution.Evidence...))
-					}); err != nil {
-						return workerResult{stageID: stageID, failed: true, err: err}
-					}
-					s.cleanupMergedWorkspace(ctx, exec.run.ID, stageID, workspace)
-					return workerResult{stageID: stageID}
+					})
 				}
 				if err := s.transition(exec, stageID, model.StageMergeConflict, func(st *model.StageState) {
 					st.ConflictingPaths = model.NewStringList(integration.ConflictingPaths)
@@ -511,8 +520,57 @@ func (s *Scheduler) integrateCommit(ctx context.Context, exec *execution, stage 
 			return s.failAttempt(ctx, exec, stageID, "integration", integration.Err)
 		}
 		sha = integration.CommitSHA
+	} else {
+		sha = s.integrationHead(exec)
 	}
-	if err := s.completeStageMerge(ctx, exec, stageID, sha, func(st *model.StageState) { st.CommitSHA = sha }); err != nil {
+	return s.verifyIntegratedStage(ctx, exec, stage, workspace, sha, func(st *model.StageState) { st.CommitSHA = sha })
+}
+
+func (s *Scheduler) verifyIntegratedStage(ctx context.Context, exec *execution, stage model.Stage, workspace orchestration.Workspace, sha string, mutate func(*model.StageState)) workerResult {
+	stageID := stage.ID
+	if persisted := s.persistIntegrationHead(ctx, exec, stageID, sha); persisted.err != nil {
+		return persisted
+	}
+	_, current, _ := stageAndState(exec, stageID)
+	if current.Status == model.StageMerging {
+		if err := s.transition(exec, stageID, model.StagePostMergeVerifying, mutate); err != nil {
+			return workerResult{stageID: stageID, failed: true, err: err}
+		}
+		mutate = nil
+	}
+	criteria := make([]model.AcceptanceCriterion, 0, len(stage.Acceptance))
+	for _, criterion := range stage.Acceptance {
+		if criterion.Type != "git-diff-not-empty" {
+			criteria = append(criteria, criterion)
+		}
+	}
+	exec.mu.Lock()
+	integrationWorkspace := exec.run.IntegrationWorkspace
+	exec.mu.Unlock()
+	verification := s.config.Verifier.Verify(ctx, orchestration.VerificationRequest{
+		RunID: exec.run.ID, StageID: stageID, Workspace: integrationWorkspace,
+		Criteria: criteria, WriteScope: stage.WriteScope,
+	}, storeSink{s.config.Store})
+	if !verification.Passed {
+		message := "post-merge acceptance verification failed"
+		if verification.Failure != nil && verification.Failure.Message != "" {
+			message = verification.Failure.Message
+		}
+		err := s.transition(exec, stageID, model.StageFailed, func(state *model.StageState) {
+			if mutate != nil {
+				mutate(state)
+			}
+			state.Evidence = model.NewStringList(append(state.Evidence.Values(), verification.Evidence...))
+			state.Failure = &model.StageFailure{Class: "post-merge-verification", Message: message, Retryable: false}
+		})
+		return workerResult{stageID: stageID, failed: true, err: err}
+	}
+	if err := s.completeStageMerge(ctx, exec, stageID, sha, func(state *model.StageState) {
+		if mutate != nil {
+			mutate(state)
+		}
+		state.Evidence = model.NewStringList(append(state.Evidence.Values(), verification.Evidence...))
+	}); err != nil {
 		return workerResult{stageID: stageID, failed: true, err: err}
 	}
 	s.cleanupMergedWorkspace(ctx, exec.run.ID, stageID, workspace)
@@ -537,22 +595,15 @@ func (s *Scheduler) completeStageMerge(ctx context.Context, exec *execution, sta
 		mutate(&exec.run.Stages[index])
 	}
 	exec.run.IntegrationHead = sha
-	event := model.Event{ID: "stage-merged:" + stageID + ":" + sha, RunID: exec.run.ID, StageID: stageID, Type: "stage.transition", Message: string(from) + " -> " + string(model.StageMerged)}
-	exec.run.PendingEvents = append(exec.run.PendingEvents, event)
+	event := s.queueStageTransition(&exec.run, exec.run.Stages[index], from)
 	run := cloneRun(exec.run)
 	exec.mu.Unlock()
-	if err := s.config.Store.UpdateRun(context.WithoutCancel(ctx), run); err != nil {
-		return err
-	}
-	if err := s.config.Store.AppendEvent(context.WithoutCancel(ctx), event); err != nil {
-		return fmt.Errorf("append merged stage transition: %w", err)
-	}
+	err := s.persistPendingEvent(ctx, &run, event)
 	exec.mu.Lock()
-	exec.run.PendingEvents = removePendingEvent(exec.run.PendingEvents, event.ID)
-	run = cloneRun(exec.run)
+	syncPersistedEventState(&exec.run, run)
 	exec.mu.Unlock()
-	if err := s.config.Store.UpdateRun(context.WithoutCancel(ctx), run); err != nil {
-		return fmt.Errorf("clear pending merged stage transition: %w", err)
+	if err != nil {
+		return fmt.Errorf("persist merged stage transition: %w", err)
 	}
 	select {
 	case exec.wake <- struct{}{}:
@@ -609,12 +660,24 @@ func (s *Scheduler) persistWorkerStopped(exec *execution, stageID string, result
 
 func (s *Scheduler) persistIntegrationHead(ctx context.Context, exec *execution, stageID, sha string) workerResult {
 	exec.persist.Lock()
+	defer exec.persist.Unlock()
+	if store, ok := s.config.Store.(orchestration.AtomicRunStateStore); ok {
+		_, err := store.MutateRun(context.WithoutCancel(ctx), exec.run.ID, func(run *model.RunState) error {
+			run.IntegrationHead = sha
+			return nil
+		})
+		if err == nil {
+			exec.mu.Lock()
+			exec.run.IntegrationHead = sha
+			exec.mu.Unlock()
+		}
+		return workerResult{stageID: stageID, failed: err != nil, err: err}
+	}
 	exec.mu.Lock()
 	exec.run.IntegrationHead = sha
 	runSnapshot := cloneRun(exec.run)
 	exec.mu.Unlock()
 	err := s.config.Store.UpdateRun(context.WithoutCancel(ctx), runSnapshot)
-	exec.persist.Unlock()
 	return workerResult{stageID: stageID, failed: err != nil, err: err}
 }
 
@@ -808,6 +871,17 @@ func cloneRun(run model.RunState) model.RunState {
 	return run
 }
 
+func syncPersistedEventState(target *model.RunState, persisted model.RunState) {
+	target.PendingEvents = append([]model.Event(nil), persisted.PendingEvents...)
+	if persisted.NextEventID > target.NextEventID {
+		target.NextEventID = persisted.NextEventID
+	}
+	if persisted.Cancellation != nil {
+		copy := *persisted.Cancellation
+		target.Cancellation = &copy
+	}
+}
+
 func removePendingEvent(events []model.Event, id string) []model.Event {
 	for index := range events {
 		if events[index].ID == id {
@@ -815,6 +889,121 @@ func removePendingEvent(events []model.Event, id string) []model.Event {
 		}
 	}
 	return events
+}
+
+func (s *Scheduler) queueEvent(run *model.RunState, event model.Event) model.Event {
+	run.NextEventID++
+	event.Time = s.config.Now().UTC()
+	event.ID = fmt.Sprintf("run-event:%d:%d", run.NextEventID, event.Time.UnixNano())
+	event.RunID = run.ID
+	run.PendingEvents = append(run.PendingEvents, event)
+	return event
+}
+
+func (s *Scheduler) queueStageTransition(run *model.RunState, stage model.StageState, from model.StageStatus) model.Event {
+	return s.queueEvent(run, model.Event{
+		StageID: stage.ID,
+		Type:    "stage.transition",
+		Message: string(from) + " -> " + string(stage.Status),
+		Data:    map[string]any{"from": from, "to": stage.Status, "attempt": stage.Attempt},
+	})
+}
+
+func (s *Scheduler) persistPendingEvent(ctx context.Context, run *model.RunState, event model.Event) error {
+	ctx = context.WithoutCancel(ctx)
+	if store, ok := s.config.Store.(orchestration.AtomicRunStateStore); ok {
+		desired := cloneRun(*run)
+		updated, err := store.MutateRun(ctx, run.ID, func(current *model.RunState) error {
+			if err := applyEventMutation(current, desired, event); err != nil {
+				return err
+			}
+			current.NextEventID++
+			event.ID = fmt.Sprintf("run-event:%d:%d", current.NextEventID, event.Time.UnixNano())
+			current.PendingEvents = append(current.PendingEvents, event)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		*run = updated
+	} else if err := s.config.Store.UpdateRun(ctx, *run); err != nil {
+		return err
+	}
+	if err := s.config.Store.AppendEvent(ctx, event); err != nil {
+		return fmt.Errorf("append pending event %q: %w", event.ID, err)
+	}
+	if store, ok := s.config.Store.(orchestration.AtomicRunStateStore); ok {
+		current, err := store.MutateRun(ctx, run.ID, func(current *model.RunState) error {
+			current.PendingEvents = removePendingEvent(current.PendingEvents, event.ID)
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("clear pending event %q: %w", event.ID, err)
+		}
+		*run = current
+		return nil
+	}
+	current, err := s.config.Store.LoadRun(ctx, run.ID)
+	if err != nil {
+		return fmt.Errorf("reload run before clearing pending event %q: %w", event.ID, err)
+	}
+	current.PendingEvents = removePendingEvent(current.PendingEvents, event.ID)
+	if err := s.config.Store.UpdateRun(ctx, current); err != nil {
+		return fmt.Errorf("clear pending event %q: %w", event.ID, err)
+	}
+	*run = current
+	return nil
+}
+
+func applyEventMutation(current *model.RunState, desired model.RunState, event model.Event) error {
+	switch event.Type {
+	case "stage.transition":
+		currentIndex := stageIndex(current.Stages, event.StageID)
+		desiredIndex := stageIndex(desired.Stages, event.StageID)
+		if currentIndex < 0 || desiredIndex < 0 || string(current.Stages[currentIndex].Status) != fmt.Sprint(event.Data["from"]) {
+			return fmt.Errorf("stage %s changed concurrently while persisting %s", event.StageID, event.Message)
+		}
+		if current.Stages[currentIndex].Held != desired.Stages[desiredIndex].Held || current.Stages[currentIndex].HoldReason != desired.Stages[desiredIndex].HoldReason {
+			return fmt.Errorf("stage %s hold changed concurrently", event.StageID)
+		}
+		current.Stages[currentIndex] = desired.Stages[desiredIndex]
+		current.UpdatedAt = desired.UpdatedAt
+	case "run.transition":
+		if string(current.Status) != fmt.Sprint(event.Data["from"]) {
+			return fmt.Errorf("run changed concurrently while persisting %s", event.Message)
+		}
+		current.Status = desired.Status
+		current.UpdatedAt = desired.UpdatedAt
+		current.Failure = desired.Failure
+		from := fmt.Sprint(event.Data["from"])
+		if desired.Cancellation != nil || from == string(model.RunFailed) || from == string(model.RunCancelled) {
+			current.Cancellation = desired.Cancellation
+		}
+	case "stage.hold.changed":
+		if desiredIndex := stageIndex(desired.Stages, event.StageID); desiredIndex >= 0 {
+			if currentIndex := stageIndex(current.Stages, event.StageID); currentIndex >= 0 {
+				current.Stages[currentIndex].Held = desired.Stages[desiredIndex].Held
+				current.Stages[currentIndex].HoldReason = desired.Stages[desiredIndex].HoldReason
+			}
+		}
+	case "run.cancellation.requested":
+		current.Cancellation = desired.Cancellation
+	}
+	return nil
+}
+
+// persistLockedExecutionEvent persists an already-applied in-memory mutation.
+// The caller holds exec.persist, preventing another snapshot from overtaking it.
+func (s *Scheduler) persistLockedExecutionEvent(ctx context.Context, exec *execution, event model.Event) error {
+	exec.mu.Lock()
+	event = s.queueEvent(&exec.run, event)
+	run := cloneRun(exec.run)
+	exec.mu.Unlock()
+	err := s.persistPendingEvent(ctx, &run, event)
+	exec.mu.Lock()
+	syncPersistedEventState(&exec.run, run)
+	exec.mu.Unlock()
+	return err
 }
 
 func (s *Scheduler) replayPendingEvents(ctx context.Context, run *model.RunState) error {
@@ -827,12 +1016,30 @@ func (s *Scheduler) replayPendingEvents(ctx context.Context, run *model.RunState
 			return fmt.Errorf("replay pending event %q: %w", event.ID, err)
 		}
 	}
-	run.PendingEvents = nil
-	if err := s.config.Store.UpdateRun(context.WithoutCancel(ctx), *run); err != nil {
+	var current model.RunState
+	var err error
+	if store, ok := s.config.Store.(orchestration.AtomicRunStateStore); ok {
+		current, err = store.MutateRun(context.WithoutCancel(ctx), run.ID, func(current *model.RunState) error {
+			for _, event := range pending {
+				current.PendingEvents = removePendingEvent(current.PendingEvents, event.ID)
+			}
+			return nil
+		})
+	} else {
+		current, err = s.config.Store.LoadRun(context.WithoutCancel(ctx), run.ID)
+		if err == nil {
+			for _, event := range pending {
+				current.PendingEvents = removePendingEvent(current.PendingEvents, event.ID)
+			}
+			err = s.config.Store.UpdateRun(context.WithoutCancel(ctx), current)
+		}
+	}
+	if err != nil {
 		return fmt.Errorf("clear replayed pending events: %w", err)
 	}
+	*run = current
 	for _, event := range pending {
-		if strings.HasPrefix(event.ID, "stage-merged:") {
+		if event.Type == "stage.transition" && fmt.Sprint(event.Data["to"]) == string(model.StageMerged) {
 			if index := stageIndex(run.Stages, event.StageID); index >= 0 && run.Stages[index].Workspace != "" {
 				s.cleanupMergedWorkspace(ctx, run.ID, event.StageID, orchestration.Workspace{Path: run.Stages[index].Workspace, Branch: run.Stages[index].Branch})
 			}
@@ -864,7 +1071,7 @@ func (s *Scheduler) readyIDs(ctx context.Context, exec *execution) []string {
 	defer exec.mu.Unlock()
 	var ready []model.StageState
 	for _, stage := range exec.run.Stages {
-		if (stage.Status == model.StageReady || stage.Status == model.StageCommitReady) && !stage.Held {
+		if (stage.Status == model.StageReady || stage.Status == model.StageCommitReady || stage.Status == model.StagePostMergeVerifying) && !stage.Held {
 			ready = append(ready, stage)
 		}
 	}
@@ -1014,18 +1221,20 @@ func (s *Scheduler) transition(exec *execution, id string, to model.StageStatus,
 	if mutate != nil {
 		mutate(&exec.run.Stages[index])
 	}
-	stage := exec.run.Stages[index]
-	exec.run.UpdatedAt = stage.LastActivity
+	exec.run.UpdatedAt = exec.run.Stages[index].LastActivity
+	event := s.queueStageTransition(&exec.run, exec.run.Stages[index], from)
+	run := cloneRun(exec.run)
 	exec.mu.Unlock()
-	return s.persistStage(context.Background(), exec.run.ID, stage, from)
+	err := s.persistPendingEvent(context.Background(), &run, event)
+	exec.mu.Lock()
+	syncPersistedEventState(&exec.run, run)
+	exec.mu.Unlock()
+	return err
 }
 
-func (s *Scheduler) persistStage(ctx context.Context, runID string, stage model.StageState, from model.StageStatus) error {
-	ctx = context.WithoutCancel(ctx)
-	if err := s.config.Store.UpdateStage(ctx, runID, stage); err != nil {
-		return err
-	}
-	return s.config.Store.AppendEvent(ctx, model.Event{Time: s.config.Now().UTC(), RunID: runID, StageID: stage.ID, Type: "stage.transition", Message: string(from) + " -> " + string(stage.Status), Data: map[string]any{"from": from, "to": stage.Status, "attempt": stage.Attempt}})
+func (s *Scheduler) persistStoredStageTransition(ctx context.Context, run *model.RunState, index int, from model.StageStatus) error {
+	event := s.queueStageTransition(run, run.Stages[index], from)
+	return s.persistPendingEvent(ctx, run, event)
 }
 
 func (s *Scheduler) persistRunTransition(ctx context.Context, run *model.RunState, to model.RunStatus) error {
@@ -1033,11 +1242,8 @@ func (s *Scheduler) persistRunTransition(ctx context.Context, run *model.RunStat
 	if err := orchestration.TransitionRun(run, to, s.config.Now()); err != nil {
 		return err
 	}
-	ctx = context.WithoutCancel(ctx)
-	if err := s.config.Store.UpdateRun(ctx, *run); err != nil {
-		return err
-	}
-	return s.config.Store.AppendEvent(ctx, model.Event{Time: s.config.Now().UTC(), RunID: run.ID, Type: "run.transition", Message: string(from) + " -> " + string(to), Data: map[string]any{"from": from, "to": to}})
+	event := s.queueEvent(run, model.Event{Type: "run.transition", Message: string(from) + " -> " + string(to), Data: map[string]any{"from": from, "to": to}})
+	return s.persistPendingEvent(ctx, run, event)
 }
 
 func (s *Scheduler) persistExecutionRunTransition(ctx context.Context, exec *execution, to model.RunStatus) error {
@@ -1050,12 +1256,15 @@ func (s *Scheduler) persistExecutionRunTransition(ctx context.Context, exec *exe
 		return err
 	}
 	run := cloneRun(exec.run)
+	event := s.queueEvent(&run, model.Event{Type: "run.transition", Message: string(from) + " -> " + string(to), Data: map[string]any{"from": from, "to": to}})
+	exec.run.NextEventID = run.NextEventID
+	syncPersistedEventState(&exec.run, run)
 	exec.mu.Unlock()
-	ctx = context.WithoutCancel(ctx)
-	if err := s.config.Store.UpdateRun(ctx, run); err != nil {
-		return err
-	}
-	return s.config.Store.AppendEvent(ctx, model.Event{Time: s.config.Now().UTC(), RunID: run.ID, Type: "run.transition", Message: string(from) + " -> " + string(to), Data: map[string]any{"from": from, "to": to}})
+	err := s.persistPendingEvent(ctx, &run, event)
+	exec.mu.Lock()
+	syncPersistedEventState(&exec.run, run)
+	exec.mu.Unlock()
+	return err
 }
 
 func (s *Scheduler) cancelUnstarted(exec *execution, reason string) error {
@@ -1083,12 +1292,15 @@ func (s *Scheduler) requestCancellation(exec *execution, reason string) error {
 	exec.persist.Lock()
 	defer exec.persist.Unlock()
 	exec.mu.Lock()
-	if exec.run.Cancellation == nil {
-		exec.run.Cancellation = &model.Cancellation{RequestedAt: s.config.Now().UTC(), Reason: reason}
+	if exec.run.Cancellation != nil {
+		exec.mu.Unlock()
+		return nil
 	}
-	run := cloneRun(exec.run)
+	exec.run.Cancellation = &model.Cancellation{RequestedAt: s.config.Now().UTC(), Reason: reason}
 	exec.mu.Unlock()
-	return s.config.Store.UpdateRun(context.Background(), run)
+	return s.persistLockedExecutionEvent(context.Background(), exec, model.Event{
+		Type: "run.cancellation.requested", Message: reason,
+	})
 }
 
 // StagePrompt is versioned and deterministic so retries and resumes receive the

@@ -93,6 +93,8 @@ func (f runnerFunc) Run(ctx context.Context, name string, args ...string) error 
 	return f(ctx, name, args...)
 }
 
+func (runnerFunc) ResolveVersion(context.Context, string) (string, error) { return "1.2.3", nil }
+
 func TestCatalogIsAnExactDisabledAllowlist(t *testing.T) {
 	want := []Specification{
 		{Module: CodexMeter, Enabled: false, Description: "Codex usage meter"},
@@ -122,7 +124,7 @@ func TestEnableSnapshotsAllCandidatesThenRunsExactCommand(t *testing.T) {
 			t.Fatalf("runner called before snapshots completed: reads %v", files.reads)
 		}
 		command = append([]string{name}, args...)
-		files.data["global.jsonc"] = []byte("{\n  // keep\n  \"plugin\": [\"opencode-codex-meter\"]\n}\n")
+		files.data["global.jsonc"] = []byte("{\n  // keep\n  \"plugin\": [\"opencode-codex-meter@1.2.3\"]\n}\n")
 		return nil
 	})
 	m := NewManager(runner, files, Paths{Global: []string{"global.jsonc"}, Server: []string{"server.json"}, TUI: []string{"tui.json"}})
@@ -130,10 +132,10 @@ func TestEnableSnapshotsAllCandidatesThenRunsExactCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"opencode", "plugin", CodexMeter, "--global"}; !reflect.DeepEqual(command, want) {
+	if want := []string{"opencode", "plugin", CodexMeter + "@1.2.3", "--global"}; !reflect.DeepEqual(command, want) {
 		t.Fatalf("command = %v, want %v", command, want)
 	}
-	if len(action.Before) != 3 || action.Before[1].Exists {
+	if action.Version != "1.2.3" || len(action.Before) != 3 || action.Before[1].Exists {
 		t.Fatalf("unexpected snapshots: %#v", action.Before)
 	}
 	if len(action.Owned) != 1 || action.Owned[0].Method != StringRegistration {
@@ -207,6 +209,32 @@ func TestDetectRegistrationsJSONCExactStringsAndTuples(t *testing.T) {
 	}
 	if len(regs) != 2 || regs[0].Method != StringRegistration || regs[1].Method != TupleRegistration {
 		t.Fatalf("registrations = %#v", regs)
+	}
+}
+
+func TestDetectRegistrationsRecognizesPinnedPackageSpecs(t *testing.T) {
+	data := []byte(`{"plugin":["opencode-codex-meter@1.2.3",["@sbakolis/open-loop@2.0.0-beta.1",{}]]}`)
+	codex, err := DetectRegistrations("config.jsonc", RoleGlobal, data, CodexMeter)
+	if err != nil || len(codex) != 1 || codex[0].Version != "1.2.3" {
+		t.Fatalf("codex=%+v error=%v", codex, err)
+	}
+	loop, err := DetectRegistrations("config.jsonc", RoleGlobal, data, OpenLoop)
+	if err != nil || len(loop) != 1 || loop[0].Version != "2.0.0-beta.1" {
+		t.Fatalf("loop=%+v error=%v", loop, err)
+	}
+}
+
+func TestEnableRejectsInconsistentPreExistingVersions(t *testing.T) {
+	files := newFakeFiles(map[string]string{
+		"one.json": `{"plugin":["opencode-codex-meter@1.0.0"]}`,
+		"two.json": `{"plugin":["opencode-codex-meter@2.0.0"]}`,
+	})
+	manager := NewManager(runnerFunc(func(context.Context, string, ...string) error {
+		t.Fatal("runner invoked")
+		return nil
+	}), files, Paths{Global: []string{"one.json", "two.json"}})
+	if _, err := manager.Enable(context.Background(), CodexMeter); err == nil || !strings.Contains(err.Error(), "inconsistent") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

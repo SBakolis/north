@@ -43,6 +43,43 @@ func TestRepositoryChangedPathsScopeAndSymlinkEscape(t *testing.T) {
 	_ = adapter
 }
 
+func TestOpenRejectsSymlinkedWorktreeRootInsideRepository(t *testing.T) {
+	repo, _ := testRepository(t)
+	cacheLink := filepath.Join(t.TempDir(), "cache")
+	if err := os.Symlink(repo.Root, cacheLink); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(context.Background(), repo.Root, filepath.Join(cacheLink, "worktrees", "project"), nil); err == nil || !strings.Contains(err.Error(), "outside repository") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestSetWorktreeRootRevalidatesProjectSpecificPath(t *testing.T) {
+	repo, _ := testRepository(t)
+	cacheLink := filepath.Join(t.TempDir(), "cache")
+	if err := os.Symlink(repo.Root, cacheLink); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SetWorktreeRoot(filepath.Join(cacheLink, "worktrees", "project")); err == nil {
+		t.Fatal("accepted project worktree root through repository symlink")
+	}
+}
+
+func TestPrepareRejectsSymlinkAddedBelowCanonicalWorktreeRoot(t *testing.T) {
+	repo, adapter := testRepository(t)
+	runPath := filepath.Join(repo.WorktreeRoot, "run")
+	if err := os.MkdirAll(repo.WorktreeRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(repo.Root, runPath); err != nil {
+		t.Fatal(err)
+	}
+	_, err := adapter.Prepare(context.Background(), orchestration.IsolationRequest{RunID: "run", StageID: "stage", BaseCommit: "HEAD"})
+	if !errors.Is(err, ErrSymlinkEscape) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestWorktreesExactCommitAndProgressiveConflictAbort(t *testing.T) {
 	repo, adapter := testRepository(t)
 	ctx := context.Background()

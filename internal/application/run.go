@@ -184,10 +184,7 @@ func (m Manager) Integrate(ctx context.Context, start, runID, target string) (mo
 		return run, err
 	}
 	run.IntegrationHead = result.CommitSHA
-	if err := store.UpdateRun(ctx, run); err != nil {
-		return run, err
-	}
-	if err := store.AppendEvent(ctx, model.Event{SchemaVersion: 1, Time: time.Now().UTC(), RunID: runID, Type: "run.integrated", Message: "integrated into " + target, Data: map[string]any{"commit": result.CommitSHA}}); err != nil {
+	if err := persistRunEvent(ctx, store, &run, model.Event{Type: "run.transition", Message: string(model.RunReadyToIntegrate) + " -> " + string(model.RunCompleted), Data: map[string]any{"from": model.RunReadyToIntegrate, "to": model.RunCompleted, "commit": result.CommitSHA, "target": target}}); err != nil {
 		return run, err
 	}
 	return run, nil
@@ -210,10 +207,7 @@ func (m Manager) Stop(ctx context.Context, start, runID, reason string) error {
 	}
 	run.Cancellation = &model.Cancellation{RequestedAt: time.Now().UTC(), Reason: reason}
 	run.UpdatedAt = time.Now().UTC()
-	if err := store.UpdateRun(ctx, run); err != nil {
-		return err
-	}
-	return store.AppendEvent(ctx, model.Event{SchemaVersion: 1, Time: time.Now().UTC(), RunID: runID, Type: "run.cancellation.requested", Message: reason})
+	return persistRunEvent(ctx, store, &run, model.Event{Type: "run.cancellation.requested", Message: reason})
 }
 
 func (m Manager) Load(ctx context.Context, start, runID string) (model.RunState, error) {
@@ -248,7 +242,11 @@ func (m Manager) SetHold(ctx context.Context, start, runID, stageID, reason stri
 	if err := orchestration.SetStageHold(&run.Stages[index], held, reason); err != nil {
 		return err
 	}
-	return store.UpdateStage(ctx, runID, run.Stages[index])
+	message := "stage released"
+	if held {
+		message = "stage held"
+	}
+	return persistRunEvent(ctx, store, &run, model.Event{StageID: stageID, Type: "stage.hold.changed", Message: message, Data: map[string]any{"held": held, "reason": reason}})
 }
 
 func (m Manager) Retry(ctx context.Context, start, runID, stageID string) error {
@@ -265,34 +263,165 @@ func (m Manager) Retry(ctx context.Context, start, runID, stageID string) error 
 		return fmt.Errorf("unknown stage %q", stageID)
 	}
 	from := run.Stages[index].Status
-	if err := orchestration.TransitionStage(&run.Stages[index], model.StageReady, time.Now()); err != nil {
+	to := model.StageReady
+	if run.Stages[index].Failure != nil && run.Stages[index].Failure.Class == "post-merge-verification" {
+		to = model.StagePostMergeVerifying
+	}
+	events := []model.Event{{StageID: stageID, Type: "stage.transition", Message: string(from) + " -> " + string(to), Data: map[string]any{"from": from, "to": to, "manual": true}}}
+	if err := orchestration.TransitionStage(&run.Stages[index], to, time.Now()); err != nil {
 		return err
 	}
 	run.Stages[index].Failure = nil
 	run.Stages[index].ConflictingPaths = ""
-	if err := store.UpdateStage(ctx, runID, run.Stages[index]); err != nil {
-		return err
-	}
 	for i := range run.Stages {
 		if run.Stages[i].Status == model.StageBlocked {
+			blockedID := run.Stages[i].ID
+			blockedFrom := run.Stages[i].Status
 			if err := orchestration.TransitionStage(&run.Stages[i], model.StageWaitingForDependencies, time.Now()); err != nil {
 				return err
 			}
-			if err := store.UpdateStage(ctx, runID, run.Stages[i]); err != nil {
-				return err
-			}
+			events = append(events, model.Event{StageID: blockedID, Type: "stage.transition", Message: string(blockedFrom) + " -> " + string(model.StageWaitingForDependencies), Data: map[string]any{"from": blockedFrom, "to": model.StageWaitingForDependencies, "manual": true}})
 		}
 	}
 	if run.Status == model.RunFailed || run.Status == model.RunCancelled {
+		runFrom := run.Status
 		run.Cancellation, run.Failure = nil, nil
 		if err := orchestration.TransitionRun(&run, model.RunRunning, time.Now()); err != nil {
 			return err
 		}
-		if err := store.UpdateRun(ctx, run); err != nil {
+		events = append(events, model.Event{Type: "run.transition", Message: string(runFrom) + " -> " + string(model.RunRunning), Data: map[string]any{"from": runFrom, "to": model.RunRunning, "manual": true}})
+	}
+	return persistRunEvents(ctx, store, &run, events)
+}
+
+func persistRunEvent(ctx context.Context, store orchestration.StateStore, run *model.RunState, event model.Event) error {
+	return persistRunEvents(ctx, store, run, []model.Event{event})
+}
+
+func persistRunEvents(ctx context.Context, store orchestration.StateStore, run *model.RunState, events []model.Event) error {
+	if atomicStore, ok := store.(orchestration.AtomicRunStateStore); ok {
+		desired := *run
+		desired.Stages = append([]model.StageState(nil), run.Stages...)
+		queued := make([]model.Event, len(events))
+		updated, err := atomicStore.MutateRun(context.WithoutCancel(ctx), run.ID, func(current *model.RunState) error {
+			for index, event := range events {
+				if err := applyApplicationEventMutation(current, desired, event); err != nil {
+					return err
+				}
+				current.NextEventID++
+				event.SchemaVersion = 1
+				event.Time = time.Now().UTC()
+				event.ID = fmt.Sprintf("run-event:%d:%d", current.NextEventID, event.Time.UnixNano())
+				event.RunID = current.ID
+				current.PendingEvents = append(current.PendingEvents, event)
+				queued[index] = event
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
+		*run = updated
+		for _, event := range queued {
+			if err := store.AppendEvent(context.WithoutCancel(ctx), event); err != nil {
+				return fmt.Errorf("append pending event %q: %w", event.ID, err)
+			}
+		}
+		updated, err = atomicStore.MutateRun(context.WithoutCancel(ctx), run.ID, func(current *model.RunState) error {
+			for _, event := range queued {
+				current.PendingEvents = removeApplicationPendingEvent(current.PendingEvents, event.ID)
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("clear pending events: %w", err)
+		}
+		*run = updated
+		return nil
 	}
-	return store.AppendEvent(ctx, model.Event{SchemaVersion: 1, Time: time.Now().UTC(), RunID: runID, StageID: stageID, Type: "stage.manual-retry", Message: string(from) + " -> Ready"})
+	queued := make([]model.Event, len(events))
+	for index, event := range events {
+		run.NextEventID++
+		event.SchemaVersion = 1
+		event.Time = time.Now().UTC()
+		event.ID = fmt.Sprintf("run-event:%d:%d", run.NextEventID, event.Time.UnixNano())
+		event.RunID = run.ID
+		run.PendingEvents = append(run.PendingEvents, event)
+		queued[index] = event
+	}
+	if err := store.UpdateRun(context.WithoutCancel(ctx), *run); err != nil {
+		return err
+	}
+	for _, event := range queued {
+		if err := store.AppendEvent(context.WithoutCancel(ctx), event); err != nil {
+			return fmt.Errorf("append pending event %q: %w", event.ID, err)
+		}
+	}
+	current, err := store.LoadRun(context.WithoutCancel(ctx), run.ID)
+	if err != nil {
+		return err
+	}
+	for _, event := range queued {
+		for index := range current.PendingEvents {
+			if current.PendingEvents[index].ID == event.ID {
+				current.PendingEvents = append(current.PendingEvents[:index:index], current.PendingEvents[index+1:]...)
+				break
+			}
+		}
+	}
+	if err := store.UpdateRun(context.WithoutCancel(ctx), current); err != nil {
+		return fmt.Errorf("clear pending events: %w", err)
+	}
+	*run = current
+	return nil
+}
+
+func applyApplicationEventMutation(current *model.RunState, desired model.RunState, event model.Event) error {
+	switch event.Type {
+	case "stage.transition":
+		currentIndex := stageIndex(current.Stages, event.StageID)
+		desiredIndex := stageIndex(desired.Stages, event.StageID)
+		if currentIndex < 0 || desiredIndex < 0 || string(current.Stages[currentIndex].Status) != fmt.Sprint(event.Data["from"]) {
+			return fmt.Errorf("stage %s changed concurrently while applying %s", event.StageID, event.Message)
+		}
+		if current.Stages[currentIndex].Held != desired.Stages[desiredIndex].Held || current.Stages[currentIndex].HoldReason != desired.Stages[desiredIndex].HoldReason {
+			return fmt.Errorf("stage %s hold changed concurrently", event.StageID)
+		}
+		current.Stages[currentIndex] = desired.Stages[desiredIndex]
+	case "run.transition":
+		if from, exists := event.Data["from"]; exists && string(current.Status) != fmt.Sprint(from) {
+			return fmt.Errorf("run changed concurrently while applying %s", event.Message)
+		}
+		current.Status = desired.Status
+		current.Failure = desired.Failure
+		current.Cancellation = desired.Cancellation
+		current.IntegrationHead = desired.IntegrationHead
+		current.UpdatedAt = desired.UpdatedAt
+	case "stage.hold.changed":
+		if desiredIndex := stageIndex(desired.Stages, event.StageID); desiredIndex >= 0 {
+			if currentIndex := stageIndex(current.Stages, event.StageID); currentIndex >= 0 {
+				if err := orchestration.SetStageHold(&current.Stages[currentIndex], desired.Stages[desiredIndex].Held, desired.Stages[desiredIndex].HoldReason); err != nil {
+					return err
+				}
+			}
+		}
+	case "run.cancellation.requested":
+		if current.Status != model.RunRunning && current.Status != model.RunPreparing {
+			return fmt.Errorf("run %s is no longer active", current.ID)
+		}
+		current.Cancellation = desired.Cancellation
+		current.UpdatedAt = desired.UpdatedAt
+	}
+	return nil
+}
+
+func removeApplicationPendingEvent(events []model.Event, id string) []model.Event {
+	for index := range events {
+		if events[index].ID == id {
+			return append(events[:index:index], events[index+1:]...)
+		}
+	}
+	return events
 }
 
 func (m Manager) Cleanup(ctx context.Context, start, runID string) error {
@@ -386,7 +515,9 @@ func (m Manager) openProject(ctx context.Context, start string) (*gitadapter.Rep
 		return nil, "", nil, err
 	}
 	projectID := ProjectID(repo.Root)
-	repo.WorktreeRoot = filepath.Join(m.Paths.CacheDir, "worktrees", projectID)
+	if err := repo.SetWorktreeRoot(filepath.Join(m.Paths.CacheDir, "worktrees", projectID)); err != nil {
+		return nil, "", nil, err
+	}
 	store := state.New(filepath.Join(m.Paths.StateDir, "projects", projectID, "runs"))
 	return repo, projectID, store, nil
 }

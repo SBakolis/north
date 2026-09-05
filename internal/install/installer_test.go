@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/SBakolis/north/internal/platform"
@@ -36,6 +37,8 @@ type pluginTestRunner func(context.Context, string, ...string) error
 func (runner pluginTestRunner) Run(ctx context.Context, command string, args ...string) error {
 	return runner(ctx, command, args...)
 }
+
+func (pluginTestRunner) ResolveVersion(context.Context, string) (string, error) { return "1.2.3", nil }
 
 func testPaths(root string) platform.Paths {
 	return platform.Paths{
@@ -442,6 +445,37 @@ func TestInstallRefusesUserOwnedAgentCollisionBeforeWriting(t *testing.T) {
 	}
 }
 
+func TestInstallValidatesGeneratedAssetsBeforeWriting(t *testing.T) {
+	paths := testPaths(t.TempDir())
+	malformed := fstest.MapFS{
+		"agents/north-planner.md":           {Data: []byte("not an agent")},
+		"agents/north-worker.md":            {Data: []byte("not an agent")},
+		"agents/north-verifier.md":          {Data: []byte("not an agent")},
+		"agents/north-conflict-resolver.md": {Data: []byte("not an agent")},
+		"hooks/north-guardrails.ts":         {Data: []byte("not a hook")},
+	}
+	_, err := Install(Options{Paths: paths, Version: "dev", NonInteractive: true, AssetFS: malformed})
+	if err == nil || !strings.Contains(err.Error(), "validate generated asset") {
+		t.Fatalf("error = %v", err)
+	}
+	if entries, readErr := os.ReadDir(filepath.Dir(paths.ConfigDir)); !errors.Is(readErr, os.ErrNotExist) && (readErr != nil || len(entries) != 0) {
+		t.Fatalf("install wrote before validation: entries=%v error=%v", entries, readErr)
+	}
+}
+
+func TestHookValidationRejectsMalformedLookalike(t *testing.T) {
+	configData := renderConfig(nil)
+	instructions, err := ComposeInstructions(nil, nil, []byte("# North"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lookalike := []byte(`export const NorthGuardrails = { "tool.execute.before": NORTH_ACTIVE`)
+	err = validateGeneratedInstall(configData, instructions, []assetOperation{{source: "hooks/north-guardrails.ts", data: lookalike}})
+	if err == nil || !strings.Contains(err.Error(), "audited hook") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestInstallRefusesUnownedNorthConfig(t *testing.T) {
 	paths := testPaths(t.TempDir())
 	if err := os.MkdirAll(paths.ConfigDir, 0o700); err != nil {
@@ -516,8 +550,8 @@ func TestPluginInstallIsIdempotentAndDeselectRemovesOwnedRegistration(t *testing
 	var commands [][]string
 	runner := pluginTestRunner(func(_ context.Context, command string, args ...string) error {
 		commands = append(commands, append([]string{command}, args...))
-		files.data[configPath] = []byte("{\n  // keep this comment\n  \"plugin\": [\"opencode-codex-meter\"]\n}\n")
-		files.data[tuiPath] = []byte("{\n  // keep this comment\n  \"plugin\": [\"opencode-codex-meter\"]\n}\n")
+		files.data[configPath] = []byte("{\n  // keep this comment\n  \"plugin\": [\"opencode-codex-meter@1.2.3\"]\n}\n")
+		files.data[tuiPath] = []byte("{\n  // keep this comment\n  \"plugin\": [\"opencode-codex-meter@1.2.3\"]\n}\n")
 		return nil
 	})
 	pluginPaths := plugins.Paths{Global: []string{configPath}, TUI: []string{tuiPath}}
@@ -534,7 +568,7 @@ func TestPluginInstallIsIdempotentAndDeselectRemovesOwnedRegistration(t *testing
 		t.Fatal(err)
 	}
 	manifestAfter, _ := os.ReadFile(ManifestPath(paths))
-	wantCommand := []string{"opencode", "plugin", plugins.CodexMeter, "--global"}
+	wantCommand := []string{"opencode", "plugin", plugins.CodexMeter + "@1.2.3", "--global"}
 	if len(commands) != 1 || !reflect.DeepEqual(commands[0], wantCommand) {
 		t.Fatalf("commands = %v, want [%v]", commands, wantCommand)
 	}
@@ -542,7 +576,7 @@ func TestPluginInstallIsIdempotentAndDeselectRemovesOwnedRegistration(t *testing
 		t.Fatal("idempotent plugin install changed manifest")
 	}
 	manifest, err := LoadManifest(ManifestPath(paths))
-	if err != nil || len(manifest.Plugins) != 1 || manifest.Plugins[0].PreExisting || len(manifest.Plugins[0].Owned) != 2 {
+	if err != nil || len(manifest.Plugins) != 1 || manifest.Plugins[0].Version != "1.2.3" || manifest.Plugins[0].PreExisting || len(manifest.Plugins[0].Owned) != 2 {
 		t.Fatalf("plugin ownership = %#v, error = %v", manifest.Plugins, err)
 	}
 	if _, err := Install(Options{Paths: paths, Version: "dev", NonInteractive: true, PluginManager: manager, PluginFiles: files, PluginPaths: pluginPaths}); err != nil {
@@ -590,7 +624,7 @@ func TestUninstallRemovesOnlyUnchangedOwnedPluginRegistration(t *testing.T) {
 	files := &pluginTestFiles{data: map[string][]byte{configPath: append([]byte(nil), original...)}}
 	pluginPaths := plugins.Paths{Global: []string{configPath}}
 	manager := plugins.NewManager(pluginTestRunner(func(context.Context, string, ...string) error {
-		files.data[configPath] = []byte("{\n  // retained\n  \"plugin\": [\"@sbakolis/open-loop\"]\n}\n")
+		files.data[configPath] = []byte("{\n  // retained\n  \"plugin\": [\"@sbakolis/open-loop@1.2.3\"]\n}\n")
 		return nil
 	}), files, pluginPaths)
 	if _, err := Install(Options{Paths: paths, Version: "dev", NonInteractive: true, PluginModules: []string{plugins.OpenLoop}, PluginManager: manager, PluginFiles: files, PluginPaths: pluginPaths}); err != nil {
@@ -656,8 +690,8 @@ func TestUninstallDoesNotRemoveCustomizedOwnedRegistration(t *testing.T) {
 	files := &pluginTestFiles{data: map[string][]byte{configPath: []byte(`{"plugin":[]}`), tuiPath: []byte(`{"plugin":[]}`)}}
 	pluginPaths := plugins.Paths{Global: []string{configPath}, TUI: []string{tuiPath}}
 	manager := plugins.NewManager(pluginTestRunner(func(context.Context, string, ...string) error {
-		files.data[configPath] = []byte(`{"plugin":["opencode-codex-meter"]}`)
-		files.data[tuiPath] = []byte(`{"plugin":["opencode-codex-meter"]}`)
+		files.data[configPath] = []byte(`{"plugin":["opencode-codex-meter@1.2.3"]}`)
+		files.data[tuiPath] = []byte(`{"plugin":["opencode-codex-meter@1.2.3"]}`)
 		return nil
 	}), files, pluginPaths)
 	if _, err := Install(Options{Paths: paths, Version: "dev", NonInteractive: true, PluginModules: []string{plugins.CodexMeter}, PluginManager: manager, PluginFiles: files, PluginPaths: pluginPaths}); err != nil {

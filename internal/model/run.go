@@ -27,6 +27,7 @@ const (
 	StageRetryScheduled         StageStatus = "RetryScheduled"
 	StageCommitReady            StageStatus = "CommitReady"
 	StageMerging                StageStatus = "Merging"
+	StagePostMergeVerifying     StageStatus = "PostMergeVerifying"
 	StageMerged                 StageStatus = "Merged"
 	StageMergeConflict          StageStatus = "MergeConflict"
 	StageFailed                 StageStatus = "Failed"
@@ -53,6 +54,7 @@ type RunState struct {
 	Cancellation         *Cancellation `json:"cancellation,omitempty"`
 	Failure              *StageFailure `json:"failure,omitempty"`
 	PendingEvents        []Event       `json:"pendingEvents,omitempty"`
+	NextEventID          uint64        `json:"nextEventId,omitempty"`
 	CreatedAt            time.Time     `json:"createdAt"`
 	UpdatedAt            time.Time     `json:"updatedAt"`
 }

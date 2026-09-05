@@ -15,7 +15,9 @@ Release archives are built for:
 
 Git and OpenCode must be available on `PATH`. `npx` must also be available when
 the optional OpenSpec knowledge component is selected; North invokes it only as
-`npx openspec`. North does not install or update these dependencies.
+`npx openspec`. `npm` is required when North installs an optional plugin so it
+can resolve and pin the package version. North does not install or update these
+dependencies.
 
 ## Install the Executable
 
@@ -76,8 +78,9 @@ north install --non-interactive --plugin opencode-codex-meter
 north install --non-interactive --plugin @sbakolis/open-loop
 ```
 
-North invokes `opencode plugin <module> --global`, snapshots every candidate
-configuration before mutation, and records only registrations it created. Codex
+North resolves the package version and invokes `opencode plugin
+<module>@<version> --global`, snapshots every candidate configuration before
+mutation, and records the resolved version and only registrations it created. Codex
 Meter must appear in both a global/server candidate and a TUI candidate; Open
 Loop must appear exactly once. Installation fails and rolls back if these
 invariants are not met. `OPENCODE_CONFIG` and `OPENCODE_TUI_CONFIG` overrides
@@ -144,7 +147,8 @@ north doctor --json
 The text and JSON forms contain the same structured checks, including executable
 versions, required OpenCode flags, plugin registrations, configuration parsing,
 stale locks, orphaned stages, and cleanup candidates. Errors produce a non-zero
-exit status; advisories do not.
+exit status; advisories do not. OpenSpec diagnosis uses bounded, offline `npx
+--no-install` resolution and never downloads a missing package.
 
 ## Planning and Orchestration
 
@@ -167,7 +171,8 @@ The `north-planner` agent turns goals and normalized knowledge into a validated
 execution plan with inferred stages, dependencies, scopes, and acceptance
 checks. Workers run in separate worktrees, deterministic acceptance checks gate commits,
 and successful commits are progressively cherry-picked into a run-owned
-integration branch. Use `--approve-plan` to approve the effective plan at run
+integration branch. Each stage's targeted checks run again in that integration
+worktree before the stage releases dependents. Use `--approve-plan` to approve the effective plan at run
 time, `--max-parallel N` to override concurrency, `--fail-fast`, or
 `--auto-resolve-conflicts` to permit the dedicated resolver workflow.
 

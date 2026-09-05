@@ -33,18 +33,61 @@ func Open(ctx context.Context, start, worktreeRoot string, runner Runner) (*Repo
 	if err != nil {
 		return nil, err
 	}
-	root, err := filepath.Abs(strings.TrimSpace(result.Stdout))
+	root, err := canonicalPath(strings.TrimSpace(result.Stdout))
 	if err != nil {
 		return nil, err
 	}
-	worktreeRoot, err = filepath.Abs(worktreeRoot)
-	if err != nil {
+	repository := &Repository{Root: root, Runner: runner}
+	if err := repository.SetWorktreeRoot(worktreeRoot); err != nil {
 		return nil, err
 	}
-	if within(root, worktreeRoot) {
-		return nil, fmt.Errorf("worktree root must be outside repository: %s", worktreeRoot)
+	return repository, nil
+}
+
+// SetWorktreeRoot canonicalizes existing ancestors so a symlinked cache cannot
+// place managed worktrees inside the repository.
+func (r *Repository) SetWorktreeRoot(worktreeRoot string) error {
+	canonical, err := canonicalPath(worktreeRoot)
+	if err != nil {
+		return err
 	}
-	return &Repository{Root: root, WorktreeRoot: worktreeRoot, Runner: runner}, nil
+	if within(r.Root, canonical) {
+		return fmt.Errorf("worktree root must be outside repository: %s", canonical)
+	}
+	r.WorktreeRoot = canonical
+	return nil
+}
+
+func canonicalPath(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	current := absolute
+	var missing []string
+	for {
+		_, err := os.Lstat(current)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", err
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
+	current, err = filepath.EvalSymlinks(current)
+	if err != nil {
+		return "", err
+	}
+	for index := len(missing) - 1; index >= 0; index-- {
+		current = filepath.Join(current, missing[index])
+	}
+	return filepath.Clean(current), nil
 }
 
 func (r *Repository) Clean(ctx context.Context) error {

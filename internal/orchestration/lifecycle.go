@@ -15,8 +15,9 @@ var stageTransitions = map[model.StageStatus]map[model.StageStatus]bool{
 	model.StageVerifying:              {model.StageCommitReady: true, model.StageRetryScheduled: true, model.StageFailed: true, model.StageCancelled: true, model.StageNeedsHumanReview: true},
 	model.StageRetryScheduled:         {model.StageReady: true, model.StageCancelled: true},
 	model.StageCommitReady:            {model.StageMerging: true, model.StageRetryScheduled: true, model.StageFailed: true, model.StageCancelled: true, model.StageNeedsHumanReview: true},
-	model.StageMerging:                {model.StageMerged: true, model.StageMergeConflict: true, model.StageRetryScheduled: true, model.StageFailed: true, model.StageCancelled: true, model.StageNeedsHumanReview: true},
-	model.StageFailed:                 {model.StageReady: true},
+	model.StageMerging:                {model.StagePostMergeVerifying: true, model.StageMergeConflict: true, model.StageRetryScheduled: true, model.StageFailed: true, model.StageCancelled: true, model.StageNeedsHumanReview: true},
+	model.StagePostMergeVerifying:     {model.StageMerged: true, model.StageFailed: true, model.StageCancelled: true, model.StageNeedsHumanReview: true},
+	model.StageFailed:                 {model.StageReady: true, model.StagePostMergeVerifying: true},
 	model.StageMergeConflict:          {model.StageReady: true},
 	model.StageNeedsHumanReview:       {model.StageReady: true, model.StageCancelled: true},
 	model.StageBlocked:                {model.StageReady: true, model.StageWaitingForDependencies: true, model.StageCancelled: true},
@@ -72,7 +73,7 @@ func IsTerminalStage(status model.StageStatus) bool {
 
 func IsActiveStage(status model.StageStatus) bool {
 	switch status {
-	case model.StagePreparing, model.StageRunning, model.StageVerifying, model.StageCommitReady, model.StageMerging:
+	case model.StagePreparing, model.StageRunning, model.StageVerifying, model.StageCommitReady, model.StageMerging, model.StagePostMergeVerifying:
 		return true
 	default:
 		return false
@@ -125,6 +126,9 @@ func SetStageHold(stage *model.StageState, held bool, reason string) error {
 // ResumeStatus is conservative because completion of interrupted host or agent
 // work cannot be inferred solely from a durable stage snapshot.
 func ResumeStatus(status model.StageStatus) (model.StageStatus, bool) {
+	if status == model.StagePostMergeVerifying {
+		return status, false
+	}
 	if status == model.StageMerging {
 		return model.StageNeedsHumanReview, true
 	}

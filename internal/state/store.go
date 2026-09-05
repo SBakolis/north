@@ -113,6 +113,28 @@ func (s *Store) UpdateRun(ctx context.Context, run model.RunState) error {
 	})
 }
 
+func (s *Store) MutateRun(ctx context.Context, runID string, mutate func(*model.RunState) error) (model.RunState, error) {
+	var updated model.RunState
+	err := s.withRunMutation(ctx, runID, func(runDir string) error {
+		run, err := s.loadRun(runDir)
+		if err != nil {
+			return err
+		}
+		if err := mutate(&run); err != nil {
+			return err
+		}
+		if err := validateRun(run); err != nil {
+			return err
+		}
+		if err := s.writeRunFiles(runDir, run); err != nil {
+			return err
+		}
+		updated = run
+		return nil
+	})
+	return updated, err
+}
+
 func (s *Store) UpdateStage(ctx context.Context, runID string, stage model.StageState) error {
 	if err := validateID("run", runID); err != nil {
 		return err

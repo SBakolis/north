@@ -17,6 +17,7 @@ import (
 )
 
 var _ orchestration.StateStore = (*Store)(nil)
+var _ orchestration.AtomicRunStateStore = (*Store)(nil)
 
 func TestStorePersistsRunStagesAndSummaries(t *testing.T) {
 	store := New(t.TempDir())
@@ -61,6 +62,29 @@ func TestStorePersistsRunStagesAndSummaries(t *testing.T) {
 		if info.Mode().Perm() != 0o600 {
 			t.Fatalf("mode of %s = %o", path, info.Mode().Perm())
 		}
+	}
+}
+
+func TestMutateRunAppliesAgainstCurrentState(t *testing.T) {
+	store := New(t.TempDir())
+	run := testRun()
+	if err := store.CreateRun(context.Background(), run); err != nil {
+		t.Fatal(err)
+	}
+	cancelled := run
+	cancelled.Cancellation = &model.Cancellation{RequestedAt: time.Now().UTC(), Reason: "stop"}
+	if err := store.UpdateRun(context.Background(), cancelled); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.MutateRun(context.Background(), run.ID, func(current *model.RunState) error {
+		current.Stages[0].Status = model.StageRunning
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.LoadRun(context.Background(), run.ID)
+	if err != nil || loaded.Cancellation == nil || loaded.Cancellation.Reason != "stop" || loaded.Stages[0].Status != model.StageRunning {
+		t.Fatalf("loaded=%+v error=%v", loaded, err)
 	}
 }
 

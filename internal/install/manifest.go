@@ -26,6 +26,7 @@ type Manifest struct {
 
 type PluginManifest struct {
 	Module      string                    `json:"module"`
+	Version     string                    `json:"version,omitempty"`
 	PreExisting bool                      `json:"preExisting"`
 	Owned       []plugins.Ownership       `json:"owned,omitempty"`
 	Candidates  []PluginCandidateSnapshot `json:"candidates"`

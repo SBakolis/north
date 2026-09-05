@@ -6,11 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/SBakolis/north/internal/application"
 	"github.com/SBakolis/north/internal/model"
 	"github.com/SBakolis/north/internal/platform"
+	"github.com/SBakolis/north/internal/testutil"
 )
 
 func TestCheckRunStateReportsCleanupCandidates(t *testing.T) {
@@ -53,6 +56,25 @@ func TestCheckRunStateReportsCleanupCandidates(t *testing.T) {
 		}
 	}
 	t.Fatalf("checks = %+v", checks)
+}
+
+func TestOpenSpecCheckIsLocalNoInstallAndBounded(t *testing.T) {
+	bin := t.TempDir()
+	testutil.WriteExecutable(t, bin, "npx", `[ "$1" = "--no-install" ] && [ "$2" = "openspec" ] && [ "$3" = "--version" ] && [ "$npm_config_offline" = "true" ] && [ "$npm_config_yes" = "false" ] && echo 1.2.3`)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	output, err := localOpenSpecVersion(context.Background())
+	if err != nil || strings.TrimSpace(string(output)) != "1.2.3" {
+		t.Fatalf("output=%q error=%v", output, err)
+	}
+
+	testutil.WriteExecutable(t, bin, "npx", `sleep 1`)
+	previous := openSpecCheckTimeout
+	openSpecCheckTimeout = 20 * time.Millisecond
+	t.Cleanup(func() { openSpecCheckTimeout = previous })
+	started := time.Now()
+	if _, err := localOpenSpecVersion(context.Background()); err == nil || time.Since(started) > 500*time.Millisecond {
+		t.Fatalf("bounded check error=%v duration=%s", err, time.Since(started))
+	}
 }
 
 func runGit(t *testing.T, directory string, args ...string) {

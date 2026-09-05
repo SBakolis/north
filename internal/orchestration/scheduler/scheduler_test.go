@@ -163,8 +163,23 @@ type finalFlakyVerifier struct{ calls int }
 
 func (v *finalFlakyVerifier) Verify(context.Context, orchestration.VerificationRequest, orchestration.EventSink) orchestration.VerificationResult {
 	v.calls++
-	if v.calls == 2 {
+	if v.calls == 3 {
 		return orchestration.VerificationResult{Failure: &model.StageFailure{Class: "verification", Message: "transient final failure", Retryable: true}}
+	}
+	return orchestration.VerificationResult{Passed: true}
+}
+
+type integrationFailVerifier struct {
+	mu       sync.Mutex
+	requests []orchestration.VerificationRequest
+}
+
+func (v *integrationFailVerifier) Verify(_ context.Context, request orchestration.VerificationRequest, _ orchestration.EventSink) orchestration.VerificationResult {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.requests = append(v.requests, request)
+	if request.StageID == "A" && request.Workspace == "integration" {
+		return orchestration.VerificationResult{Failure: &model.StageFailure{Message: "integration regression", Retryable: true}}
 	}
 	return orchestration.VerificationResult{Passed: true}
 }
@@ -347,7 +362,7 @@ func TestMergedTransitionPropagatesEventPersistenceFailure(t *testing.T) {
 	runtime := &fakeRuntime{attempts: map[string]int{}, failures: map[string]int{}, merged: integration.merged}
 	s := newScheduler(t, runtime, store, &fakeIsolation{bases: map[string]string{}}, integration, nil)
 	_, err := s.Start(context.Background(), model.RunState{ID: "event-failure", ProjectID: "project", BaseCommit: "base", IntegrationHead: "base"}, plan(1, false, model.Stage{ID: "A", Title: "A", Description: "A", WriteScope: []string{"A.txt"}}))
-	if err == nil || !strings.Contains(err.Error(), "append merged stage transition") {
+	if err == nil || !strings.Contains(err.Error(), "persist merged stage transition") {
 		t.Fatalf("error = %v", err)
 	}
 	persisted, _ := store.LoadRun(context.Background(), "event-failure")
@@ -372,6 +387,82 @@ func TestMergedTransitionPropagatesEventPersistenceFailure(t *testing.T) {
 	}
 	if mergedEvents != 1 {
 		t.Fatalf("merged transition events = %d", mergedEvents)
+	}
+}
+
+func TestAllStageTransitionsUsePendingEventOutbox(t *testing.T) {
+	store := &memoryStore{eventError: func(event model.Event) error {
+		if event.Type == "stage.transition" && event.Message == "Ready -> Preparing" {
+			return errors.New("event store unavailable")
+		}
+		return nil
+	}}
+	integration := &fakeIntegration{mergedStages: map[string]bool{}}
+	runtime := &fakeRuntime{attempts: map[string]int{}, failures: map[string]int{}, merged: integration.merged}
+	s := newScheduler(t, runtime, store, &fakeIsolation{bases: map[string]string{}}, integration, nil)
+	_, err := s.Start(context.Background(), model.RunState{ID: "transition-outbox", ProjectID: "project", BaseCommit: "base"}, plan(1, false, model.Stage{ID: "A", Title: "A", Description: "A", WriteScope: []string{"A.txt"}}))
+	if err == nil || !strings.Contains(err.Error(), "append pending event") {
+		t.Fatalf("error = %v", err)
+	}
+	persisted, _ := store.LoadRun(context.Background(), "transition-outbox")
+	if persisted.Stages[0].Status != model.StagePreparing || len(persisted.PendingEvents) != 1 || persisted.PendingEvents[0].Message != "Ready -> Preparing" {
+		t.Fatalf("persisted run = %+v", persisted)
+	}
+}
+
+func TestManualHoldUsesPendingEventOutbox(t *testing.T) {
+	p := plan(1, false, model.Stage{ID: "A", Title: "A", Description: "A", WriteScope: []string{"A.txt"}})
+	store := &memoryStore{run: model.RunState{ID: "hold-outbox", ProjectID: "project", Status: model.RunRunning, Plan: p, Stages: []model.StageState{{ID: "A", Status: model.StageReady}}}, eventError: func(event model.Event) error {
+		if event.Type == "stage.hold.changed" {
+			return errors.New("event store unavailable")
+		}
+		return nil
+	}}
+	integration := &fakeIntegration{mergedStages: map[string]bool{}}
+	runtime := &fakeRuntime{attempts: map[string]int{}, failures: map[string]int{}, merged: integration.merged}
+	s := newScheduler(t, runtime, store, &fakeIsolation{bases: map[string]string{}}, integration, nil)
+	if err := s.HoldStage(context.Background(), "hold-outbox", "A", "pause"); err == nil {
+		t.Fatal("hold succeeded despite event failure")
+	}
+	persisted, _ := store.LoadRun(context.Background(), "hold-outbox")
+	if !persisted.Stages[0].Held || len(persisted.PendingEvents) != 1 || persisted.PendingEvents[0].Type != "stage.hold.changed" {
+		t.Fatalf("persisted run = %+v", persisted)
+	}
+}
+
+func TestPostMergeVerificationBlocksDependents(t *testing.T) {
+	store := &memoryStore{}
+	repo := &fakeRepo{committed: map[string][]string{}}
+	integration := &fakeIntegration{mergedStages: map[string]bool{}}
+	runtime := &fakeRuntime{attempts: map[string]int{}, failures: map[string]int{}, merged: integration.merged}
+	verifier := &integrationFailVerifier{}
+	s, err := scheduler.New(scheduler.Config{
+		Store: store, Runtime: runtime, Isolation: &fakeIsolation{bases: map[string]string{}}, Inspector: repo, Scope: repo,
+		Verifier: verifier, Committer: repo, Integration: integration,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := plan(1, false,
+		model.Stage{ID: "A", Title: "A", Description: "A", WriteScope: []string{"A.txt"}, Acceptance: []model.AcceptanceCriterion{{ID: "check", Type: "file-exists", Path: "A.txt"}}},
+		model.Stage{ID: "B", Title: "B", Description: "B", DependsOn: []string{"A"}, WriteScope: []string{"B.txt"}},
+	)
+	result, err := s.Start(context.Background(), model.RunState{ID: "post-merge", ProjectID: "project", BaseCommit: "base", IntegrationWorkspace: "integration"}, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Run.Stages[0].Status != model.StageFailed || result.Run.Stages[0].Failure.Class != "post-merge-verification" || result.Run.Stages[1].Status != model.StageBlocked {
+		t.Fatalf("stages = %+v", result.Run.Stages)
+	}
+	if runtime.attempts["B"] != 0 || result.Run.Status != model.RunFailed {
+		t.Fatalf("dependent attempts=%d run=%s", runtime.attempts["B"], result.Run.Status)
+	}
+	if err := s.RetryStage(context.Background(), "post-merge", "A"); err != nil {
+		t.Fatal(err)
+	}
+	retried, _ := store.LoadRun(context.Background(), "post-merge")
+	if retried.Stages[0].Status != model.StagePostMergeVerifying || retried.Stages[0].CommitSHA == "" {
+		t.Fatalf("retried post-merge stage = %+v", retried.Stages[0])
 	}
 }
 

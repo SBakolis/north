@@ -59,6 +59,8 @@ the identical plan hash is explicitly approved.
 
 The installed `north-guardrails.ts` plugin is executable code loaded by OpenCode.
 Review the North version and source before enabling it in a sensitive environment.
+During a North worker run, its Bash hook permits one direct command at a time and
+rejects shell composition, expansion, redirection, escaping, and shell delegation.
 Agent instructions and guardrails reduce accidental unsafe actions but cannot
 provide process, filesystem, network, or credential isolation. OpenCode retains
 the privileges of the user that launched it.

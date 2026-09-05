@@ -48,6 +48,8 @@ type Report struct {
 	Healthy       bool           `json:"healthy"`
 }
 
+var openSpecCheckTimeout = 5 * time.Second
+
 func Run(ctx context.Context, version string, paths platform.Paths, projectDir string) Report {
 	report := Report{SchemaVersion: 1, NorthVersion: version, Platform: runtime.GOOS + "/" + runtime.GOARCH, Paths: paths, Healthy: true}
 	add := func(id string, severity Severity, message string) {
@@ -105,9 +107,11 @@ func Run(ctx context.Context, version string, paths platform.Paths, projectDir s
 		checkInstructionsAndHook(paths, status, add)
 		checkOpenCodeConfigs(paths, add)
 		if contains(status.Components, "knowledge.openspec") {
-			output, err := exec.CommandContext(ctx, "npx", "openspec", "--version").CombinedOutput()
+			output, err := localOpenSpecVersion(ctx)
 			if err != nil {
 				add("openspec", Error, fmt.Sprintf("selected provider unavailable: %v", err))
+			} else if strings.TrimSpace(string(output)) == "" {
+				add("openspec", Error, "selected provider returned an empty version")
 			} else {
 				add("openspec", Pass, strings.TrimSpace(string(output)))
 			}
@@ -132,6 +136,15 @@ func Run(ctx context.Context, version string, paths platform.Paths, projectDir s
 		}
 	}
 	return report
+}
+
+func localOpenSpecVersion(ctx context.Context) ([]byte, error) {
+	checkCtx, cancel := context.WithTimeout(ctx, openSpecCheckTimeout)
+	defer cancel()
+	command := exec.CommandContext(checkCtx, "npx", "--no-install", "openspec", "--version")
+	command.Env = append(os.Environ(), "npm_config_offline=true", "npm_config_yes=false", "NO_UPDATE_NOTIFIER=1")
+	boundCommand(command)
+	return command.CombinedOutput()
 }
 
 func checkRunState(ctx context.Context, paths platform.Paths, repositoryRoot string, add func(string, Severity, string)) {

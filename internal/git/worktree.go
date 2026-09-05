@@ -47,7 +47,11 @@ func (a *Adapter) addWorktree(ctx context.Context, path, branch, base string) er
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	_, err := a.Repo.Runner.Run(ctx, a.Repo.Root, "worktree", "add", "-b", branch, path, base)
+	canonical, err := canonicalPath(path)
+	if err != nil || !within(a.Repo.WorktreeRoot, canonical) || within(a.Repo.Root, canonical) {
+		return fmt.Errorf("%w: canonical worktree path %s escapes managed root", ErrSymlinkEscape, canonical)
+	}
+	_, err = a.Repo.Runner.Run(ctx, a.Repo.Root, "worktree", "add", "-b", branch, canonical, base)
 	return err
 }
 

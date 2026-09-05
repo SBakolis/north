@@ -4,11 +4,14 @@ package plugins
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
+	"regexp"
+	"strings"
 )
 
 const (
@@ -71,12 +74,28 @@ func (p Paths) Candidates(module string) []CandidateConfig {
 
 type Runner interface {
 	Run(context.Context, string, ...string) error
+	ResolveVersion(context.Context, string) (string, error)
 }
 
 type ExecRunner struct{}
 
 func (ExecRunner) Run(ctx context.Context, name string, args ...string) error {
 	return exec.CommandContext(ctx, name, args...).Run()
+}
+
+func (ExecRunner) ResolveVersion(ctx context.Context, module string) (string, error) {
+	output, err := exec.CommandContext(ctx, "npm", "view", module, "version", "--json").CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("resolve %s version: %w: %s", module, err, strings.TrimSpace(string(output)))
+	}
+	var version string
+	if err := json.Unmarshal(output, &version); err != nil {
+		version = strings.TrimSpace(string(output))
+	}
+	if !packageVersion.MatchString(version) {
+		return "", fmt.Errorf("resolve %s version: invalid version %q", module, version)
+	}
+	return version, nil
 }
 
 type Files interface {
@@ -111,6 +130,7 @@ type Registration struct {
 	Module      string
 	Method      RegistrationMethod
 	Fingerprint string
+	Version     string
 	start, end  int
 	arrayStart  int
 }
@@ -124,6 +144,7 @@ type Ownership struct {
 
 type Action struct {
 	Module       string
+	Version      string
 	Before       []Snapshot
 	After        []Snapshot
 	PreExisting  bool
@@ -182,11 +203,22 @@ func (m *Manager) Enable(ctx context.Context, module string) (Action, error) {
 	}
 	if len(beforeRegs) > 0 {
 		action.PreExisting = true
+		action.Version = beforeRegs[0].Version
+		for _, registration := range beforeRegs[1:] {
+			if registration.Version != action.Version {
+				return action, fmt.Errorf("%s has inconsistent pre-existing versions %q and %q", module, action.Version, registration.Version)
+			}
+		}
 		action.After = cloneSnapshots(before)
 		action.Verification = verify(module, beforeRegs)
 		return action, nil
 	}
-	if err := m.runner.Run(ctx, "opencode", "plugin", module, "--global"); err != nil {
+	version, err := m.runner.ResolveVersion(ctx, module)
+	if err != nil {
+		return action, err
+	}
+	action.Version = version
+	if err := m.runner.Run(ctx, "opencode", "plugin", module+"@"+version, "--global"); err != nil {
 		return action, fmt.Errorf("install %s: %w", module, err)
 	}
 	after, err := m.SnapshotCandidates(module)
@@ -197,6 +229,11 @@ func (m *Manager) Enable(ctx context.Context, module string) (Action, error) {
 	afterRegs, err := registrations(after, module)
 	if err != nil {
 		return action, err
+	}
+	for _, registration := range afterRegs {
+		if registration.Version != version {
+			return action, fmt.Errorf("%s registration resolved version %q, expected %q", module, registration.Version, version)
+		}
 	}
 	for _, reg := range afterRegs {
 		action.Owned = append(action.Owned, Ownership{Path: reg.Path, Module: module, Method: reg.Method, Fingerprint: reg.Fingerprint})
@@ -249,14 +286,18 @@ func DetectRegistrations(path string, role ConfigRole, data []byte, module strin
 	for _, array := range pluginArrays(root) {
 		for _, entry := range array.elements {
 			method := RegistrationMethod("")
-			if entry.kind == 's' && entry.text == module {
+			version, matches := moduleVersion(entry.text, module)
+			if entry.kind == 's' && matches {
 				method = StringRegistration
 			}
-			if entry.kind == '[' && len(entry.elements) > 0 && entry.elements[0].kind == 's' && entry.elements[0].text == module {
+			if entry.kind == '[' && len(entry.elements) > 0 && entry.elements[0].kind == 's' {
+				version, matches = moduleVersion(entry.elements[0].text, module)
+			}
+			if entry.kind == '[' && len(entry.elements) > 0 && entry.elements[0].kind == 's' && matches {
 				method = TupleRegistration
 			}
 			if method != "" {
-				found = append(found, Registration{Path: path, Role: role, Module: module, Method: method, Fingerprint: fingerprint(data, entry), start: entry.start, end: entry.end, arrayStart: array.start})
+				found = append(found, Registration{Path: path, Role: role, Module: module, Version: version, Method: method, Fingerprint: fingerprint(data, entry), start: entry.start, end: entry.end, arrayStart: array.start})
 			}
 		}
 	}
@@ -329,12 +370,34 @@ func removeClaims(data []byte, path string, claims []Ownership) ([]byte, int, er
 
 func entryIdentity(entry node) (RegistrationMethod, string) {
 	if entry.kind == 's' {
-		return StringRegistration, entry.text
+		return StringRegistration, canonicalModule(entry.text)
 	}
 	if entry.kind == '[' && len(entry.elements) > 0 && entry.elements[0].kind == 's' {
-		return TupleRegistration, entry.elements[0].text
+		return TupleRegistration, canonicalModule(entry.elements[0].text)
 	}
 	return "", ""
+}
+
+var packageVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$`)
+
+func moduleVersion(spec, module string) (string, bool) {
+	if spec == module {
+		return "", true
+	}
+	prefix := module + "@"
+	if strings.HasPrefix(spec, prefix) && packageVersion.MatchString(strings.TrimPrefix(spec, prefix)) {
+		return strings.TrimPrefix(spec, prefix), true
+	}
+	return "", false
+}
+
+func canonicalModule(spec string) string {
+	for _, module := range []string{CodexMeter, OpenLoop} {
+		if _, matches := moduleVersion(spec, module); matches {
+			return module
+		}
+	}
+	return spec
 }
 
 func removalSpan(tokens []token, array, entry node) span {

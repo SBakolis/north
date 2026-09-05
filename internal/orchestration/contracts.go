@@ -129,6 +129,12 @@ type StateStore interface {
 	ListRuns(context.Context, string) ([]model.RunSummary, error)
 }
 
+// AtomicRunStateStore applies a read-modify-write operation while holding the
+// store's cross-process run lock.
+type AtomicRunStateStore interface {
+	MutateRun(context.Context, string, func(*model.RunState) error) (model.RunState, error)
+}
+
 type RunLock interface{ Release() error }
 type RunLockProvider interface {
 	AcquireSchedulerRunLock(context.Context, string, string) (RunLock, error)

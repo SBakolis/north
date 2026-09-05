@@ -14,8 +14,9 @@ provide OpenSpec as a project-local npm dependency rather than a global binary.
 
 North invokes OpenSpec exclusively as an argv array beginning with `npx
 openspec`. It never invokes a bare `openspec` command and never interpolates
-OpenSpec arguments into a shell command. Installation and doctor therefore check
-`npx openspec --version` when the provider is selected.
+OpenSpec arguments into a shell command. Installation checks `npx openspec
+--version`; the read-only doctor check uses `npx --no-install openspec --version`
+with npm offline mode and a timeout so diagnostics cannot fetch or cache it.
 
 ## Consequences
 

@@ -191,6 +191,9 @@ func runInstall(stdin io.Reader, stdout, stderr io.Writer, command string, args 
 		if contains(selected, "knowledge.openspec") {
 			commands = append(commands, "npx")
 		}
+		if len(pluginModules) > 0 {
+			commands = append(commands, "npm")
+		}
 		for _, executable := range commands {
 			if _, err := exec.LookPath(executable); err != nil {
 				return fmt.Errorf("required executable %q not found: %w", executable, err)
