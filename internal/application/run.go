@@ -176,6 +176,20 @@ func (m Manager) Integrate(ctx context.Context, start, runID, target string) (mo
 	if target == "" {
 		target = run.TargetBranch
 	}
+	head, err := repo.ResolveAt(ctx, run.IntegrationWorkspace, "HEAD")
+	if err != nil {
+		return run, err
+	}
+	if head != run.IntegrationHead {
+		return run, errors.New("integration commit changed since verification")
+	}
+	paths, err := repo.ChangedPaths(ctx, run.IntegrationWorkspace, "HEAD")
+	if err != nil {
+		return run, err
+	}
+	if len(paths) > 0 {
+		return run, errors.New("integration worktree changed since verification; preserve changes before integrating")
+	}
 	result := gitadapter.NewAdapter(repo).IntegrateRun(ctx, orchestration.RunIntegrationRequest{RunID: runID, TargetBranch: target})
 	if result.Err != nil {
 		return run, result.Err
@@ -271,7 +285,6 @@ func (m Manager) Retry(ctx context.Context, start, runID, stageID string) error 
 	if err := orchestration.TransitionStage(&run.Stages[index], to, time.Now()); err != nil {
 		return err
 	}
-	run.Stages[index].Failure = nil
 	run.Stages[index].ConflictingPaths = ""
 	for i := range run.Stages {
 		if run.Stages[i].Status == model.StageBlocked {
@@ -441,6 +454,20 @@ func (m Manager) Cleanup(ctx context.Context, start, runID string) error {
 	if run.Status == model.RunRunning || run.Status == model.RunPreparing || run.Status == model.RunReadyToIntegrate {
 		return fmt.Errorf("refuse cleanup of run %s in status %s", runID, run.Status)
 	}
+	// Check all ownership and commit boundaries before removing any worktree.
+	for _, stage := range run.Stages {
+		expected := gitadapter.SanitizeBranch("north", run.ID, "stage", stage.ID)
+		head := stage.WorkspaceHead
+		if head == "" {
+			head = stage.CommitSHA
+		}
+		if err := validateCleanup(ctx, repo, stage.Workspace, stage.Branch, expected, head); err != nil {
+			return err
+		}
+	}
+	if err := validateCleanup(ctx, repo, run.IntegrationWorkspace, run.IntegrationBranch, gitadapter.SanitizeBranch("north", run.ID, "integration"), run.IntegrationHead); err != nil {
+		return err
+	}
 	adapter := gitadapter.NewAdapter(repo)
 	for _, stage := range run.Stages {
 		if stage.Workspace == "" {
@@ -466,7 +493,7 @@ func (m Manager) Cleanup(ctx context.Context, start, runID string) error {
 			return fmt.Errorf("refuse cleanup of unexpected stage branch %q", stage.Branch)
 		}
 		if stage.Branch != "" {
-			if err := adapter.DeleteManagedBranch(ctx, stage.Branch); err != nil {
+			if err := adapter.DeleteManagedBranch(ctx, stage.Branch, cleanupStageHead(stage)); err != nil {
 				return err
 			}
 		}
@@ -476,7 +503,7 @@ func (m Manager) Cleanup(ctx context.Context, start, runID string) error {
 		return fmt.Errorf("refuse cleanup of unexpected integration branch %q", run.IntegrationBranch)
 	}
 	if run.IntegrationBranch != "" {
-		if err := adapter.DeleteManagedBranch(ctx, run.IntegrationBranch); err != nil {
+		if err := adapter.DeleteManagedBranch(ctx, run.IntegrationBranch, run.IntegrationHead); err != nil {
 			return err
 		}
 	}
@@ -573,4 +600,59 @@ func acquireRepositoryLock(ctx context.Context, store *state.Store, projectID st
 		return nil, errors.Join(err, releaseErr)
 	}
 	return store.AcquireRepositoryLock(ctx, projectID)
+}
+
+func cleanupStageHead(stage model.StageState) string {
+	if stage.WorkspaceHead != "" {
+		return stage.WorkspaceHead
+	}
+	return stage.CommitSHA
+}
+
+func validateCleanup(ctx context.Context, repo *gitadapter.Repository, workspace, branch, expectedBranch, expectedHead string) error {
+	if branch == "" && workspace == "" {
+		return nil
+	}
+	if branch != expectedBranch {
+		return fmt.Errorf("refuse cleanup of unexpected branch %q", branch)
+	}
+	result, err := repo.Runner.Run(ctx, repo.Root, "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
+	if err != nil && result.ExitCode != 1 {
+		return err
+	}
+	if err == nil {
+		head, err := repo.ResolveBase(ctx, "refs/heads/"+branch)
+		if err != nil {
+			return err
+		}
+		if expectedHead == "" || head != expectedHead {
+			return fmt.Errorf("refuse cleanup of branch %s: tip differs from recorded commit; preserve unrecorded work", branch)
+		}
+	}
+	if workspace != "" {
+		if _, err := os.Lstat(workspace); errors.Is(err, os.ErrNotExist) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		head, err := repo.ResolveAt(ctx, workspace, "HEAD")
+		if err != nil {
+			return err
+		}
+		current, err := repo.Runner.Run(ctx, workspace, "branch", "--show-current")
+		if err != nil {
+			return err
+		}
+		if head != expectedHead || strings.TrimSpace(current.Stdout) != branch {
+			return fmt.Errorf("refuse cleanup of worktree %s: checkout differs from recorded branch/commit", workspace)
+		}
+		dirty, err := repo.Runner.Run(ctx, workspace, "status", "--porcelain=v1", "--untracked-files=all")
+		if err != nil {
+			return err
+		}
+		if dirty.Stdout != "" {
+			return fmt.Errorf("refuse cleanup of dirty worktree %s", workspace)
+		}
+	}
+	return nil
 }

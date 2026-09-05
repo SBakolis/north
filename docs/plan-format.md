@@ -83,3 +83,12 @@ lowercase SHA-256 digest of compact canonical JSON after defaults are applied an
 stages, dependencies, write scopes, and acceptance criteria are sorted by ID or
 value. Reordering those semantically unordered collections does not change the
 hash.
+
+## Verification output
+
+Host verification may generate files in a stage's approved write scope. North
+rechecks the full diff after verification and includes those files in the stage
+commit. Post-merge and final verification must leave the committed tree unchanged;
+tracked edits or new unignored files cause verification to fail. Use ignored
+build directories for disposable test output. Repair attempts receive the full
+acceptance criteria, prior failure, and captured host diagnostics.

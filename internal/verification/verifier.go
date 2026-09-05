@@ -57,6 +57,14 @@ func New(config Config) *Verifier {
 }
 
 func (v *Verifier) Verify(ctx context.Context, req orchestration.VerificationRequest, sink orchestration.EventSink) orchestration.VerificationResult {
+	var committedHead string
+	if req.RequireClean && v.config.Git != nil {
+		var err error
+		committedHead, err = v.config.Git.ResolveAt(ctx, req.Workspace, "HEAD")
+		if err != nil {
+			return failure("verification-mutation", err)
+		}
+	}
 	if v.config.Git != nil {
 		paths, err := v.config.Git.ChangedPaths(ctx, req.Workspace, "HEAD")
 		if err != nil {
@@ -84,6 +92,27 @@ func (v *Verifier) Verify(ctx context.Context, req orchestration.VerificationReq
 			result.Passed = false
 			result.Failure = &model.StageFailure{Class: "verification", Message: fmt.Sprintf("%s: %v", criterion.ID, err), Retryable: true}
 			return result
+		}
+	}
+	if v.config.Git != nil {
+		paths, err := v.config.Git.ChangedPaths(ctx, req.Workspace, "HEAD")
+		if err != nil {
+			return failure("scope", err)
+		}
+		if err := gitadapter.ValidateScope(req.Workspace, paths, req.WriteScope); err != nil {
+			return failure("scope", err)
+		}
+		if req.RequireClean {
+			head, err := v.config.Git.ResolveAt(ctx, req.Workspace, "HEAD")
+			if err != nil {
+				return failure("verification-mutation", err)
+			}
+			if head != committedHead {
+				return failure("verification-mutation", errors.New("verification changed the integration commit"))
+			}
+		}
+		if req.RequireClean && len(paths) > 0 {
+			return failure("verification-mutation", fmt.Errorf("verification changed the committed tree: %s", strings.Join(paths, ", ")))
 		}
 	}
 	return result

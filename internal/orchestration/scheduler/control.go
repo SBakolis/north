@@ -113,7 +113,6 @@ func (s *Scheduler) RetryStage(ctx context.Context, runID, stageID string) error
 	}
 	to := retryTarget(state)
 	if err := s.transition(exec, stageID, to, func(stage *model.StageState) {
-		stage.Failure = nil
 		stage.ConflictingPaths = ""
 		stage.RetryEligibleAt = s.config.Now().UTC()
 	}); err != nil {
@@ -140,7 +139,6 @@ func (s *Scheduler) retryStoredStage(ctx context.Context, runID, stageID string)
 	if err := orchestration.TransitionStage(&run.Stages[index], to, s.config.Now()); err != nil {
 		return err
 	}
-	run.Stages[index].Failure = nil
 	run.Stages[index].ConflictingPaths = ""
 	run.Stages[index].RetryEligibleAt = s.config.Now().UTC()
 	if err := s.persistStoredStageTransition(ctx, &run, index, from); err != nil {

@@ -60,6 +60,8 @@ type RunState struct {
 }
 
 type StageState struct {
+	CancelledFrom    StageStatus   `json:"cancelledFrom,omitempty"`
+	WorkspaceHead    string        `json:"workspaceHead,omitempty"`
 	SchemaVersion    int           `json:"schemaVersion"`
 	ID               string        `json:"id"`
 	Status           StageStatus   `json:"status"`

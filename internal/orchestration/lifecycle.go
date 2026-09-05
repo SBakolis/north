@@ -21,7 +21,7 @@ var stageTransitions = map[model.StageStatus]map[model.StageStatus]bool{
 	model.StageMergeConflict:          {model.StageReady: true},
 	model.StageNeedsHumanReview:       {model.StageReady: true, model.StageCancelled: true},
 	model.StageBlocked:                {model.StageReady: true, model.StageWaitingForDependencies: true, model.StageCancelled: true},
-	model.StageCancelled:              {model.StageReady: true},
+	model.StageCancelled:              {model.StageReady: true, model.StageWaitingForDependencies: true, model.StagePostMergeVerifying: true},
 }
 
 var runTransitions = map[model.RunStatus]map[model.RunStatus]bool{

@@ -763,3 +763,22 @@ func TestPromptIsStable(t *testing.T) {
 		}
 	}
 }
+
+func TestResumeCancellationPreservesMergedStagesAndPostMergeVerification(t *testing.T) {
+	integration := &fakeIntegration{mergedStages: map[string]bool{"A": true, "B": true}}
+	runtime := &fakeRuntime{attempts: map[string]int{}, failures: map[string]int{}, merged: integration.merged}
+	p := plan(1, false, model.Stage{ID: "A", WriteScope: []string{"A.txt"}}, model.Stage{ID: "B", DependsOn: []string{"A"}, WriteScope: []string{"B.txt"}})
+	p.Spec.Policy.MaxAttemptsPerStage = 1
+	store := &memoryStore{run: model.RunState{ID: "cancelled", ProjectID: "project", Status: model.RunCancelled, Plan: p, BaseCommit: "base", IntegrationHead: "merged-b", Cancellation: &model.Cancellation{}, Stages: []model.StageState{
+		{ID: "A", Status: model.StageMerged, Attempt: 1, CommitSHA: "merged-a"},
+		{ID: "B", Status: model.StageCancelled, CancelledFrom: model.StagePostMergeVerifying, Attempt: 1, CommitSHA: "merged-b"},
+	}}}
+	s := newScheduler(t, runtime, store, &fakeIsolation{bases: map[string]string{}}, integration, func(context.Context, time.Duration) error { return nil })
+	result, err := s.Resume(context.Background(), "cancelled")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Run.Status != model.RunReadyToIntegrate || result.Run.Cancellation != nil || len(runtime.attempts) != 0 {
+		t.Fatalf("resume reran completed work: %+v attempts=%v", result.Run, runtime.attempts)
+	}
+}

@@ -78,6 +78,7 @@ type ExactPathCommitter interface {
 }
 
 type VerificationRequest struct {
+	RequireClean              bool
 	RunID, StageID, Workspace string
 	Criteria                  []model.AcceptanceCriterion
 	WriteScope                []string

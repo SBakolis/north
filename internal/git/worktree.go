@@ -94,7 +94,7 @@ func (a *Adapter) Cleanup(ctx context.Context, workspace orchestration.Workspace
 	return err
 }
 
-func (a *Adapter) DeleteManagedBranch(ctx context.Context, branch string) error {
+func (a *Adapter) DeleteManagedBranch(ctx context.Context, branch string, expectedHead ...string) error {
 	if !strings.HasPrefix(branch, "north/") || branch == "north/" {
 		return fmt.Errorf("%w: refuse to delete non-North branch %q", ErrUnsafeCleanup, branch)
 	}
@@ -102,6 +102,13 @@ func (a *Adapter) DeleteManagedBranch(ctx context.Context, branch string) error 
 		if result.ExitCode == 1 {
 			return nil
 		}
+		return err
+	}
+	if len(expectedHead) > 0 {
+		if expectedHead[0] == "" {
+			return fmt.Errorf("%w: missing recorded branch tip", ErrUnsafeCleanup)
+		}
+		_, err := a.Repo.Runner.Run(ctx, a.Repo.Root, "update-ref", "--no-deref", "-d", "refs/heads/"+branch, expectedHead[0])
 		return err
 	}
 	_, err := a.Repo.Runner.Run(ctx, a.Repo.Root, "branch", "--delete", "--force", branch)

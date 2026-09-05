@@ -114,13 +114,20 @@ merge completion cannot be inferred safely.
 
 Request cancellation with `north run stop <run-id>`. The running scheduler polls
 the durable cancellation intent, stops launching stages, and terminates active
-worker contexts. A dead scheduler leaves that intent for resume logic.
+worker contexts. A dead scheduler leaves that intent for resume logic. After a stop completes,
+`north run resume <run-id>` clears cancellation and reschedules cancelled stages
+in dependency order, preserving stages already merged. This explicit operator
+resume permits a new attempt even if cancellation consumed the previous attempt
+budget. A live recorded worker still prevents resume.
 
 Use `north stage retry`, `hold`, and `release` for explicit stage control. Use
 `north cleanup <run-id> --dry-run` before cleanup. Cleanup refuses active runs,
 unknown worktrees, and dirty worktrees; it never resets or cleans them forcibly.
-After worktrees are removed, cleanup deletes only the exact run-owned stage and
-integration branches recorded in validated state.
+Cleanup checks every branch tip and checkout against recorded commits before
+removing worktrees. An operator commit blocks cleanup even if the worktree is
+clean. Older runs without a recorded workspace tip may require manual preservation
+and cleanup; North does not infer ownership from a branch name alone. Branch
+removal checks the expected tip again to avoid deleting a concurrently moved ref.
 Merge conflicts remain explicit unless automatic conflict resolution was
 approved for the plan.
 
