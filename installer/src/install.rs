@@ -83,7 +83,9 @@ fn read_state(config: &Path) -> Result<Option<State>> {
         } else {
             ensure!(
                 parts.len() == 2
-                    && (parts[0].as_os_str() == "skills" || parts[0].as_os_str() == "agents"),
+                    && ["skills", "agents", "commands"]
+                        .iter()
+                        .any(|folder| parts[0].as_os_str() == *folder),
                 "Invalid link in North installation state"
             );
             state.repo.join("assets").join(relative)
@@ -106,12 +108,13 @@ impl Installation {
         check_directory(config)?;
         check_directory(&config.join("agents"))?;
         check_directory(&config.join("skills"))?;
+        check_directory(&config.join("commands"))?;
         let mut available = BTreeMap::new();
         let core = repo.join("assets/instructions/core.md");
         ensure!(core.is_file(), "Missing {}", core.display());
         available.insert(PathBuf::from("AGENTS.md"), core);
         let mut skills = Vec::new();
-        for folder in ["agents", "skills"] {
+        for folder in ["agents", "skills", "commands"] {
             for entry in fs::read_dir(repo.join("assets").join(folder))? {
                 let entry = entry?;
                 let path = entry.path();
@@ -193,6 +196,7 @@ impl Installation {
         );
         check_directory(&self.config.join("agents"))?;
         check_directory(&self.config.join("skills"))?;
+        check_directory(&self.config.join("commands"))?;
         Ok(lock)
     }
 
@@ -276,6 +280,7 @@ impl Installation {
         let bytes = serde_json::to_vec_pretty(&state)?;
         fs::create_dir_all(self.config.join("agents"))?;
         fs::create_dir_all(self.config.join("skills"))?;
+        fs::create_dir_all(self.config.join("commands"))?;
         transact(&actions, || write_state(&self.config, &bytes))
     }
 
@@ -313,7 +318,7 @@ impl Installation {
             Ok(())
         })?;
         // Only remove empty North destination directories; unrelated files survive.
-        for folder in ["agents", "skills"] {
+        for folder in ["agents", "skills", "commands"] {
             let _ = fs::remove_dir(self.config.join(folder));
         }
         Ok(())
@@ -418,8 +423,10 @@ mod tests {
         let config = temp.path().join("config");
         fs::create_dir_all(repo.join("assets/instructions")).unwrap();
         fs::create_dir_all(repo.join("assets/agents")).unwrap();
+        fs::create_dir_all(repo.join("assets/commands")).unwrap();
         fs::write(repo.join("assets/instructions/core.md"), "north").unwrap();
         fs::write(repo.join("assets/agents/north-worker.md"), "agent").unwrap();
+        fs::write(repo.join("assets/commands/north.md"), "command").unwrap();
         for name in ["one", "two"] {
             fs::create_dir_all(repo.join("assets/skills").join(name)).unwrap();
             fs::write(
@@ -429,6 +436,33 @@ mod tests {
             .unwrap();
         }
         (temp, repo, config)
+    }
+
+    #[test]
+    fn upgrade_adds_commands_even_with_no_skills_selected() {
+        let (_temp, repo, config) = fixture();
+        let command = repo.join("assets/commands/north.md");
+        fs::remove_file(&command).unwrap();
+        Installation::load(&repo, &config)
+            .unwrap()
+            .apply(&BTreeSet::new())
+            .unwrap();
+        fs::write(&command, "command").unwrap();
+        Installation::load(&repo, &config)
+            .unwrap()
+            .apply(&BTreeSet::new())
+            .unwrap();
+        assert!(matches_link(
+            &config.join("commands/north.md"),
+            &command.canonicalize().unwrap()
+        ));
+        // Tracked commands can still be removed after their source is deleted.
+        fs::remove_file(command).unwrap();
+        Installation::load(&repo, &config)
+            .unwrap()
+            .uninstall()
+            .unwrap();
+        assert!(!exists(&config.join("commands")).unwrap());
     }
 
     #[test]

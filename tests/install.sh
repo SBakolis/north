@@ -27,6 +27,9 @@ run --all
 for source in "$root"/assets/agents/*.md; do
     [ "$(readlink "$config/agents/$(basename "$source")")" = "$source" ]
 done
+for source in "$root"/assets/commands/*.md; do
+    [ "$(readlink "$config/commands/$(basename "$source")")" = "$source" ]
+done
 for source in "$root"/assets/skills/*; do
     [ "$(readlink "$config/skills/$(basename "$source")")" = "$source" ]
 done
@@ -37,6 +40,7 @@ run --skills explain-code
 [ ! -e "$config/skills/unity-ui" ]
 run --skills ''
 [ ! -e "$config/skills/explain-code" ]
+[ -L "$config/commands/north.md" ]
 run --skills unity-ui
 [ -L "$config/skills/unity-ui" ]
 fail --skills unknown-skill
@@ -45,6 +49,7 @@ fail --all --uninstall
 fail < /dev/null
 run --uninstall
 [ ! -e "$config/AGENTS.md" ]
+[ ! -e "$config/commands/north.md" ]
 [ ! -e "$config/.north-installation.json" ]
 run --uninstall
 
@@ -127,6 +132,33 @@ printf 'custom agent\n' > "$config/agents/north-worker.md"
 fail --all
 [ ! -e "$config/AGENTS.md" ]
 
+# Command conflicts fail before changing instructions; unrelated commands survive.
+rm -rf "$config"
+mkdir -p "$config/commands"
+printf 'original\n' > "$config/AGENTS.md"
+printf 'custom north\n' > "$config/commands/north.md"
+fail --all
+[ "$(cat "$config/AGENTS.md")" = original ]
+[ ! -e "$config/AGENTS-backup.md" ]
+[ "$(cat "$config/commands/north.md")" = 'custom north' ]
+mv "$config/commands/north.md" "$config/commands/custom.md"
+ln -s "$tmp/missing-command" "$config/commands/north.md"
+fail --all
+rm "$config/commands/north.md"
+run --all
+# A user replacement of an installed command is preserved during uninstall.
+rm "$config/commands/north.md"
+printf 'replacement\n' > "$config/commands/north.md"
+run --uninstall
+[ "$(cat "$config/commands/north.md")" = replacement ]
+[ "$(cat "$config/commands/custom.md")" = 'custom north' ]
+mv "$config/commands" "$tmp/foreign-commands"
+ln -s "$tmp/foreign-commands" "$config/commands"
+fail --all
+[ "$(cat "$config/AGENTS.md")" = original ]
+[ ! -e "$config/AGENTS-backup.md" ]
+rm "$config/commands"
+
 # Reject relative XDG roots, and honor HOME when XDG is unset or empty.
 if env XDG_CONFIG_HOME=relative "$binary" --repo "$root" --all; then exit 1; fi
 [ ! -e relative ]
@@ -143,6 +175,7 @@ config=$config_root/opencode
 run --all
 env XDG_CONFIG_HOME="$config_root" "$binary" --repo "$tmp/source with spaces" --skills explain-code
 [ "$(readlink "$config/skills/explain-code")" = "$tmp/source with spaces/assets/skills/explain-code" ]
+[ "$(readlink "$config/commands/north.md")" = "$tmp/source with spaces/assets/commands/north.md" ]
 env XDG_CONFIG_HOME="$config_root" "$binary" --repo "$tmp/source with spaces" --uninstall
 [ ! -e "$config/AGENTS.md" ]
 

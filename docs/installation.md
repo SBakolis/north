@@ -12,7 +12,7 @@ runs reuse the build. No North daemon or OpenCode plugin is installed.
 On first installation, all bundled skills start checked. Use Up/Down (or j/k)
 to move, Space to enable or disable a skill, `a` to select all, and `n` to select
 none. Press Enter to apply or q/Esc to leave without changing your installation.
-Shared instructions and the four North agents are always included.
+Shared instructions, the `/north` command, and the four North agents are always included.
 
 The installer creates symlinks under
 `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`:
@@ -20,6 +20,7 @@ The installer creates symlinks under
 | Destination | Repository source |
 | --- | --- |
 | `AGENTS.md` | `assets/instructions/core.md` |
+| `commands/north.md` | `assets/commands/north.md` |
 | `agents/north-planner.md` | `assets/agents/north-planner.md` |
 | `agents/north-worker.md` | `assets/agents/north-worker.md` |
 | `agents/north-verifier.md` | `assets/agents/north-verifier.md` |
@@ -34,6 +35,18 @@ skills automatically and links each enabled directory separately. Unrelated
 skills remain intact. Keep the checkout because the links point directly into it.
 Start a new OpenCode session to load the installed instructions and skills.
 
+## Scaffold a project
+
+Run `/north` in an OpenCode session for the project. It creates the project's
+`north/` directory without changing existing contents. When `openspec --version`
+succeeds and the project has no `openspec/` directory, it asks whether to add
+OpenSpec with OpenCode support. Accepting runs `openspec init --tools opencode`
+from the project root; declining leaves only the North directory. A missing CLI
+is skipped, and an existing OpenSpec directory is left untouched.
+
+Rerun the installer after updating North to register the command in an existing
+installation. The command is included even when all optional skills are disabled.
+
 ## Existing instructions and conflicts
 
 Before linking North's instructions, the installer renames an existing
@@ -44,11 +57,11 @@ uninstall and is never overwritten on reruns. If no original `AGENTS.md` exists,
 no backup is needed.
 
 All link destinations are checked before modifying instructions or skills.
-The installer refuses conflicting agent files and enabled skill destinations,
+The installer refuses conflicting command files, agent files, and enabled skill destinations,
 including dangling links. Disable a conflicting skill to leave it alone, or
 move the conflicting file aside yourself. An existing untracked
 `AGENTS-backup.md` also blocks installation so it cannot be overwritten.
-Symlinks in place of the OpenCode, agents, or skills directory are refused.
+Symlinks in place of the OpenCode, commands, agents, or skills directory are refused.
 
 The installer records link ownership and whether it created a backup in
 `.north-installation.json`. Keep this file and `AGENTS-backup.md` until uninstall.
@@ -67,7 +80,7 @@ If the checkout moves, run its `install.sh` from the new location to update link
 using the saved installation state.
 
 Press `u` in the installed menu, then `y`, to uninstall. North removes its matching
-instruction, agent, and skill links, restores `AGENTS-backup.md` to `AGENTS.md`
+instruction, command, agent, and skill links, restores `AGENTS-backup.md` to `AGENTS.md`
 when present, and removes its installation state. With no original instructions,
 `AGENTS.md` is simply removed. The checkout, project plans, unrelated skills,
 user replacements for agent/skill links, and other OpenCode configuration remain.

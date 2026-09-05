@@ -1,9 +1,15 @@
 # Architecture
 
-North consists of `install.sh`, shared instructions, four Markdown subagent
+North consists of `install.sh`, shared instructions, a `/north` command, four Markdown subagent
 definitions, and task-specific skills. Installation links these assets into OpenCode's global
 configuration. OpenCode loads the instructions and executes the subagents with
 its native Task tool.
+
+Commands live in `assets/commands/*.md` and are always installed into OpenCode's
+global `commands/` directory. `/north` directs the primary build agent to create
+the current project's `north/` directory and offer OpenSpec initialization when
+the CLI is installed. The confirmation and setup run in the current conversation.
+See [OpenCode commands](https://opencode.ai/docs/commands/) for the command format.
 
 Skills live in `assets/skills/<name>/SKILL.md`. OpenCode discovers their names
 and descriptions and loads the full instructions through its native skill tool

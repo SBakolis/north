@@ -23,14 +23,19 @@ Clone this repository to a permanent location, then run:
 The script builds and opens a small Ratatui installer. It requires a POSIX shell
 and Rust/Cargo (Rust 1.88+); the first build downloads its dependencies. Use
 Up/Down and Space to choose the starting skills, then Enter to install shared
-instructions, four subagents, and the selected skills into
+instructions, the `/north` command, four subagents, and the selected skills into
 `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`.
 
 Your existing `AGENTS.md` is saved as `AGENTS-backup.md`. Run `./install.sh` again
 to enable or disable skills, or press `u` to uninstall North and restore that
 backup. Keep the checkout in place because the installed links point into it.
 
-Start a new OpenCode session and ask for your change normally. The shared
+Start a new OpenCode session in your project and run `/north` to create its
+`north/` directory. If the OpenSpec CLI is installed and the project does not
+already have OpenSpec, the command asks whether to initialize it with OpenCode
+support. Existing North contents and OpenSpec setup are preserved.
+
+Then ask for your change normally. The shared
 instructions guide delegation for larger tasks. You can also invoke an agent
 explicitly, for example:
 
