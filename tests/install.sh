@@ -187,4 +187,70 @@ run --skills explain-code
 [ ! -e "$config/skills/unity-ui" ]
 run --uninstall
 [ ! -e "$config/AGENTS.md" ]
+
+# OpenSpec uses isolated command stubs: tests never install global packages.
+mock_bin="$tmp/mock bin"
+mkdir "$mock_bin"
+cat > "$tmp/openspec-template" <<'EOF'
+#!/bin/sh
+[ "$*" = '--version' ] || exit 90
+printf '1.0.0\n'
+EOF
+cat > "$mock_bin/node" <<'EOF'
+#!/bin/sh
+[ "$*" = '--version' ] || exit 90
+printf '%s\n' "${MOCK_NODE_VERSION:-v20.19.0}"
+EOF
+cat > "$mock_bin/npm" <<'EOF'
+#!/bin/sh
+[ "$*" = 'install -g @fission-ai/openspec@latest' ] || exit 90
+printf 'install\n' >> "$MOCK_ROOT/npm-calls"
+[ "${MOCK_NPM_FAIL:-0}" = 0 ] || exit 1
+[ "${MOCK_SKIP_BINARY:-0}" = 0 ] || exit 0
+/bin/cp "$MOCK_ROOT/openspec-template" "$MOCK_ROOT/mock bin/openspec"
+/bin/chmod +x "$MOCK_ROOT/mock bin/openspec"
+EOF
+chmod +x "$mock_bin/node" "$mock_bin/npm"
+openspec_run() {
+    env PATH="$mock_bin" MOCK_ROOT="$tmp" XDG_CONFIG_HOME="$tmp/openspec-config" \
+        "$binary" --repo "$root" "$@"
+}
+openspec_fail() {
+    if openspec_run "$@" > "$tmp/openspec-error" 2>&1; then
+        printf 'Expected OpenSpec failure: %s\n' "$*" >&2
+        exit 1
+    fi
+}
+# No implicit package install; conflicting flags fail before invoking npm.
+openspec_run --skills explain-code
+[ ! -e "$tmp/npm-calls" ]
+openspec_fail --all --openspec --uninstall
+openspec_fail --uninstall --openspec
+[ ! -e "$tmp/npm-calls" ]
+# Missing and outdated Node never invoke npm.
+mv "$mock_bin/node" "$tmp/node-stub"
+openspec_fail --openspec
+mv "$tmp/node-stub" "$mock_bin/node"
+(MOCK_NODE_VERSION=v20.18.9 openspec_fail --openspec)
+[ ! -e "$tmp/npm-calls" ]
+# npm errors and a missing executable after success are reported, not swallowed.
+(MOCK_NPM_FAIL=1 openspec_fail --openspec)
+grep -q 'North was saved, but OpenSpec setup failed' "$tmp/openspec-error"
+(MOCK_SKIP_BINARY=1 openspec_fail --openspec)
+grep -q 'openspec is not on PATH' "$tmp/openspec-error"
+rm "$tmp/npm-calls"
+# Standalone opt-in preserves current skills; repeat invocation skips npm.
+openspec_run --openspec
+[ "$(cat "$tmp/npm-calls")" = install ]
+[ -L "$tmp/openspec-config/opencode/skills/explain-code" ]
+[ ! -e "$tmp/openspec-config/opencode/skills/unity-ui" ]
+rm "$tmp/npm-calls" "$mock_bin/node" "$mock_bin/npm"
+openspec_run --all --openspec
+[ ! -e "$tmp/npm-calls" ]
+# A broken existing CLI is not treated as absent and overwritten.
+printf '#!/bin/sh\nexit 1\n' > "$mock_bin/openspec"
+openspec_fail --skills '' --openspec
+grep -q 'Existing openspec --version failed' "$tmp/openspec-error"
+openspec_run --uninstall
+[ -x "$mock_bin/openspec" ]
 printf 'Installer checks passed\n'

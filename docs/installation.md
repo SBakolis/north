@@ -14,6 +14,22 @@ to move, Space to enable or disable a skill, `a` to select all, and `n` to selec
 none. Press Enter to apply or q/Esc to leave without changing your installation.
 Shared instructions, the `/north` command, and the four North agents are always included.
 
+The optional **OpenSpec CLI** checkbox starts unchecked. Select it with Space
+to install OpenSpec if it is missing. The `a` and `n` shortcuts affect skills only.
+On apply, the installer checks `openspec --version` and skips installation if
+it succeeds. If the command is missing, it checks for Node.js 20.19.0 or newer,
+runs `npm install -g @fission-ai/openspec@latest`, and verifies the CLI afterward,
+following the [OpenSpec installation instructions](https://openspec.dev/docs/installation).
+Node.js and npm must already be on `PATH`, and npm's global directory must be
+writable. An existing CLI that fails its version check produces an error rather
+than being overwritten.
+
+OpenSpec is installed globally, separately from North's links. The installer does not
+initialize OpenSpec in a project, upgrade an existing installation, or remove it
+when you uninstall North. If OpenSpec setup fails, the installer exits with an
+error and explains that North's changes were saved; fix the reported issue and
+retry with `./install.sh --openspec`.
+
 The installer creates symlinks under
 `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`:
 
@@ -104,11 +120,17 @@ select an action using the same installation logic:
 
 ```sh
 ./install.sh --all                         # Enable all bundled skills
+./install.sh --all --openspec              # Also install OpenSpec if missing
+./install.sh --openspec                    # Keep skill selection; ensure OpenSpec
 ./install.sh --skills explain-code,unity-ui # Enable exactly these skills
 ./install.sh --skills ''                   # Disable all skills; keep North agents
 ./install.sh --uninstall                   # Remove North and restore the backup
 ./install.sh --help
 ```
+
+`--openspec` can be combined with `--all` or `--skills`, but not `--uninstall`.
+Used alone on first installation, it enables all bundled skills. `--all` by
+itself only selects bundled skills and does not install OpenSpec.
 
 The installer does not edit `opencode.json` or install plugins. OpenCode documents
 [agent discovery](https://opencode.ai/docs/agents/),

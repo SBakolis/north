@@ -26,6 +26,10 @@ Up/Down and Space to choose the starting skills, then Enter to install shared
 instructions, the `/north` command, four subagents, and the selected skills into
 `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`.
 
+Select the optional **OpenSpec CLI** checkbox to install OpenSpec if it is missing,
+or run `./install.sh --all --openspec`. The installer checks for an existing CLI
+first; installation uses npm and requires Node.js 20.19.0+.
+
 Your existing `AGENTS.md` is saved as `AGENTS-backup.md`. Run `./install.sh` again
 to enable or disable skills, or press `u` to uninstall North and restore that
 backup. Keep the checkout in place because the installed links point into it.

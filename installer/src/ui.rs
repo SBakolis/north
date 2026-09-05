@@ -15,13 +15,17 @@ const NORTH_BANNER: &str = r" _   _  ___  ____ _____ _   _
 |_| \_|\___/|_| \_\|_| |_| |_|";
 
 pub enum Action {
-    Apply(Option<BTreeSet<String>>),
+    Apply {
+        skills: Option<BTreeSet<String>>,
+        openspec: bool,
+    },
     Uninstall,
     Cancel,
 }
 
 pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::Result<Action> {
     let mut selected = installation.selected_skills();
+    let mut openspec = false;
     let mut list = ListState::default().with_selected(Some(0));
     let mut confirming_uninstall = false;
     loop {
@@ -32,6 +36,7 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
                 &selected,
                 &mut list,
                 confirming_uninstall,
+                openspec,
             )
         })?;
         let Event::Key(key) = event::read()? else {
@@ -53,7 +58,7 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
             }
             continue;
         }
-        let count = installation.skills.len();
+        let count = installation.skills.len() + 1;
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return Ok(Action::Cancel),
             KeyCode::Down | KeyCode::Char('j') if count > 0 => {
@@ -63,6 +68,10 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
                 list.select(Some((list.selected().unwrap_or(0) + count - 1) % count));
             }
             KeyCode::Char(' ') if count > 0 => {
+                if list.selected() == Some(installation.skills.len()) {
+                    openspec = !openspec;
+                    continue;
+                }
                 let name = &installation.skills[list.selected().unwrap_or(0)];
                 if !selected.remove(name) {
                     selected.insert(name.clone());
@@ -70,7 +79,12 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
             }
             KeyCode::Char('a') => selected = installation.skill_names(),
             KeyCode::Char('n') => selected.clear(),
-            KeyCode::Enter => return Ok(Action::Apply(Some(selected))),
+            KeyCode::Enter => {
+                return Ok(Action::Apply {
+                    skills: Some(selected),
+                    openspec,
+                });
+            }
             KeyCode::Char('u') if installation.installed() => confirming_uninstall = true,
             _ => {}
         }
@@ -83,6 +97,7 @@ fn render(
     selected: &BTreeSet<String>,
     list: &mut ListState,
     confirming: bool,
+    openspec: bool,
 ) {
     let full_banner = frame.area().height >= 20
         && usize::from(frame.area().width) >= NORTH_BANNER.lines().map(str::len).max().unwrap_or(0);
@@ -118,7 +133,7 @@ fn render(
             .block(Block::bordered().title(title)),
         header,
     );
-    let items: Vec<_> = installation
+    let mut items: Vec<_> = installation
         .skills
         .iter()
         .map(|name| {
@@ -128,9 +143,16 @@ fn render(
             ))
         })
         .collect();
+    items.push(ListItem::new(format!(
+        "[{}] OpenSpec CLI (install if missing; npm global)",
+        if openspec { "x" } else { " " }
+    )));
     frame.render_stateful_widget(
         List::new(items)
-            .block(Block::bordered().title(format!(" Skills / {} enabled ", selected.len())))
+            .block(Block::bordered().title(format!(
+                " Skills / {} enabled + optional OpenSpec ",
+                selected.len()
+            )))
             .highlight_style(
                 Style::default()
                     .fg(Color::Cyan)
@@ -143,9 +165,9 @@ fn render(
     let help = if confirming {
         "Uninstall North and restore your original AGENTS.md?\nPress y to uninstall; n or Esc to return. Other OpenCode files are preserved."
     } else if installation.installed() {
-        "Up/Down or j/k: move   Space: toggle   a: all   n: none\nEnter: save changes   u: uninstall North   q/Esc: quit without changes"
+        "Up/Down or j/k: move   Space: toggle   a/n: all/no skills\nEnter: save changes   u: uninstall North   q/Esc: quit without changes"
     } else {
-        "Up/Down or j/k: move   Space: toggle   a: all   n: none\nEnter: install North   q/Esc: quit without changes"
+        "Up/Down or j/k: move   Space: toggle   a/n: all/no skills\nEnter: install North   q/Esc: quit without changes"
     };
     frame.render_widget(
         Paragraph::new(help)
@@ -187,6 +209,7 @@ mod tests {
                             &installation.selected_skills(),
                             &mut ListState::default().with_selected(Some(0)),
                             confirming,
+                            true,
                         )
                     })
                     .unwrap();
@@ -199,6 +222,7 @@ mod tests {
                         .map(|cell| cell.symbol())
                         .collect();
                     assert!(text.contains("[x] explain-code"));
+                    assert!(text.contains("[x] OpenSpec CLI (install if missing; npm global)"));
                     assert!(text.contains(if confirming {
                         "Confirm uninstall"
                     } else {
