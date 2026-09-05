@@ -4,7 +4,8 @@ When a project uses OpenSpec, agents read its project instructions and relevant
 requirements, design, and task artifacts directly. Include the applicable paths
 and constraints when delegating to subagents.
 
-In a working project, `/north` creates the North directory and checks for an existing
+The North installer can optionally install the OpenSpec CLI. In a working
+project, `/north` creates the North directory and checks for an existing
 OpenSpec setup. If none exists and the CLI is available, it asks before running
 `openspec init --tools opencode` in that project. It skips initialization when
 the CLI is missing or the user declines, and preserves existing OpenSpec files.
