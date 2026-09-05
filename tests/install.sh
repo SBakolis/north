@@ -31,8 +31,26 @@ for source in "$root"/assets/commands/*.md; do
     [ "$(readlink "$config/commands/$(basename "$source")")" = "$source" ]
 done
 for source in "$root"/assets/skills/*; do
+    if [ "$(basename "$source")" = commit ]; then
+        [ ! -e "$config/skills/commit" ]
+        continue
+    fi
     [ "$(readlink "$config/skills/$(basename "$source")")" = "$source" ]
 done
+
+# Auto commit is one option: toggling it replaces the installed mode.
+run --skills ''
+[ "$(readlink "$config/skills/commit")" = "$root/assets/skills/commit" ]
+[ ! -e "$config/skills/auto-commit" ]
+run --skills auto-commit
+[ "$(readlink "$config/skills/auto-commit")" = "$root/assets/skills/auto-commit" ]
+[ ! -e "$config/skills/commit" ]
+fail --skills commit,auto-commit
+[ -L "$config/skills/auto-commit" ]
+[ ! -e "$config/skills/commit" ]
+run --skills commit
+[ -L "$config/skills/commit" ]
+[ ! -e "$config/skills/auto-commit" ]
 
 # Reruns link and unlink exactly the requested skills.
 run --skills explain-code
@@ -41,6 +59,7 @@ run --skills explain-code
 run --skills ''
 [ ! -e "$config/skills/explain-code" ]
 [ -L "$config/commands/north.md" ]
+[ -L "$config/skills/commit" ]
 run --skills unity-ui
 [ -L "$config/skills/unity-ui" ]
 fail --skills unknown-skill
@@ -51,6 +70,8 @@ run --uninstall
 [ ! -e "$config/AGENTS.md" ]
 [ ! -e "$config/commands/north.md" ]
 [ ! -e "$config/.north-installation.json" ]
+[ ! -e "$config/skills/commit" ]
+[ ! -e "$config/skills/auto-commit" ]
 run --uninstall
 
 # Preserve the exact original instructions through repeated configuration changes.

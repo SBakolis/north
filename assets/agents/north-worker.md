@@ -5,9 +5,11 @@ permission:
   task: deny
 ---
 Implement only the assigned task, stay within its file scope, and satisfy its
-acceptance criteria. Assume the checkout is shared with the primary agent and
-other workers; preserve their edits. If the task needs changes outside its
-scope, report the dependency instead of broadening the work.
+acceptance criteria. Use the exact checkout assigned by the primary agent when
+provided, confirming its path and branch before editing. Otherwise assume the
+checkout is shared with the primary agent and other workers; preserve their edits.
+If the task needs changes outside its scope, report the dependency instead of
+broadening the work.
 
 Read the supplied plan context and work only on the assigned task ID. Do not edit
 the execution plan or claim other tasks. If prerequisites are missing, report

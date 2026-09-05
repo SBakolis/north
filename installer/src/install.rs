@@ -10,6 +10,8 @@ use std::{
 
 const STATE: &str = ".north-installation.json";
 const BACKUP: &str = "AGENTS-backup.md";
+const COMMIT: &str = "commit";
+pub const AUTO_COMMIT: &str = "auto-commit";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct State {
@@ -128,7 +130,7 @@ impl Installation {
                         .file_name()
                         .into_string()
                         .map_err(|_| anyhow::anyhow!("Asset names must be UTF-8"))?;
-                    if folder == "skills" {
+                    if folder == "skills" && name != COMMIT {
                         skills.push(name.clone());
                     }
                     available.insert(Path::new(folder).join(name), path);
@@ -136,6 +138,11 @@ impl Installation {
             }
         }
         skills.sort();
+        ensure!(
+            available.contains_key(Path::new("skills/commit"))
+                == available.contains_key(Path::new("skills/auto-commit")),
+            "The commit and auto-commit skills must be bundled together"
+        );
         Ok(Self {
             state: read_state(config)?,
             repo,
@@ -200,18 +207,53 @@ impl Installation {
         Ok(lock)
     }
 
-    pub fn apply(&self, selected: &BTreeSet<String>) -> Result<()> {
+    // The checklist stores auto-commit as one option; commit is its unchecked fallback.
+    pub fn resolved_skills(&self, selected: &BTreeSet<String>) -> Result<BTreeSet<String>> {
+        let mut known = self.skill_names();
+        if self.available.contains_key(Path::new("skills/commit")) {
+            known.insert(COMMIT.into());
+        }
         ensure!(
-            selected.is_subset(&self.skill_names()),
+            selected.is_subset(&known),
             "Unknown skills: {}",
             selected
-                .difference(&self.skill_names())
+                .difference(&known)
                 .cloned()
                 .collect::<Vec<_>>()
                 .join(", ")
         );
+        ensure!(
+            !(selected.contains(COMMIT) && selected.contains(AUTO_COMMIT)),
+            "Choose commit or auto-commit, not both"
+        );
+        let mut resolved = selected.clone();
+        if known.contains(COMMIT) && !selected.contains(AUTO_COMMIT) {
+            resolved.insert(COMMIT.into());
+        }
+        Ok(resolved)
+    }
+
+    pub fn apply(&self, selected: &BTreeSet<String>) -> Result<()> {
+        let selected = self.resolved_skills(selected)?;
         let _lock = self.lock()?;
         let owned = self.owned_links();
+        // Never leave the opposite commit mode active or remove a user's replacement.
+        for name in [COMMIT, AUTO_COMMIT] {
+            let relative = Path::new("skills").join(name);
+            let target = self.config.join(&relative);
+            if self.available.contains_key(&relative)
+                && !selected.contains(name)
+                && exists(&target)?
+            {
+                ensure!(
+                    owned
+                        .get(&relative)
+                        .is_some_and(|source| matches_link(&target, source)),
+                    "Conflicting commit mode at {}; move it aside before switching modes",
+                    target.display()
+                );
+            }
+        }
         let desired: BTreeMap<_, _> = self
             .available
             .iter()
@@ -436,6 +478,109 @@ mod tests {
             .unwrap();
         }
         (temp, repo, config)
+    }
+
+    fn add_commit_modes(repo: &Path) {
+        for name in [COMMIT, AUTO_COMMIT] {
+            let path = repo.join("assets/skills").join(name);
+            fs::create_dir_all(&path).unwrap();
+            fs::write(path.join("SKILL.md"), "skill").unwrap();
+        }
+    }
+
+    #[test]
+    fn commit_modes_are_exclusive_and_survive_reruns() {
+        let (_temp, repo, config) = fixture();
+        add_commit_modes(&repo);
+        let initial = Installation::load(&repo, &config).unwrap();
+        assert!(initial.selected_skills().contains(AUTO_COMMIT));
+        assert!(!initial.skills.iter().any(|name| name == COMMIT));
+        initial.apply(&initial.selected_skills()).unwrap();
+        assert!(matches_link(
+            &config.join("skills/auto-commit"),
+            &repo
+                .canonicalize()
+                .unwrap()
+                .join("assets/skills/auto-commit")
+        ));
+        assert!(!exists(&config.join("skills/commit")).unwrap());
+
+        let installed = Installation::load(&repo, &config).unwrap();
+        assert!(installed.selected_skills().contains(AUTO_COMMIT));
+        installed.apply(&BTreeSet::new()).unwrap();
+        let manual = Installation::load(&repo, &config).unwrap();
+        assert!(manual.selected_skills().is_empty());
+        assert_eq!(
+            manual.resolved_skills(&BTreeSet::new()).unwrap(),
+            BTreeSet::from([COMMIT.into()])
+        );
+        assert!(matches_link(
+            &config.join("skills/commit"),
+            &repo.canonicalize().unwrap().join("assets/skills/commit")
+        ));
+        assert!(!exists(&config.join("skills/auto-commit")).unwrap());
+        manual.apply(&manual.selected_skills()).unwrap();
+        let manual = Installation::load(&repo, &config).unwrap();
+        manual.apply(&BTreeSet::from([AUTO_COMMIT.into()])).unwrap();
+        assert!(!exists(&config.join("skills/commit")).unwrap());
+        let automatic = Installation::load(&repo, &config).unwrap();
+        assert_eq!(
+            automatic.selected_skills(),
+            BTreeSet::from([AUTO_COMMIT.into()])
+        );
+        let state_before = fs::read(config.join(STATE)).unwrap();
+        assert!(
+            automatic
+                .apply(&BTreeSet::from([COMMIT.into(), AUTO_COMMIT.into()]))
+                .is_err()
+        );
+        assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
+        automatic.uninstall().unwrap();
+        assert!(!exists(&config.join("skills/auto-commit")).unwrap());
+        assert!(!exists(&config.join("skills/commit")).unwrap());
+    }
+
+    #[test]
+    fn upgrading_adds_manual_commit_without_enabling_auto_commit() {
+        let (_temp, repo, config) = fixture();
+        Installation::load(&repo, &config)
+            .unwrap()
+            .apply(&BTreeSet::from(["two".into()]))
+            .unwrap();
+        add_commit_modes(&repo);
+        let upgraded = Installation::load(&repo, &config).unwrap();
+        assert_eq!(upgraded.selected_skills(), BTreeSet::from(["two".into()]));
+        upgraded.apply(&upgraded.selected_skills()).unwrap();
+        assert!(config.join("skills/commit").is_symlink());
+        assert!(!exists(&config.join("skills/auto-commit")).unwrap());
+        assert!(config.join("skills/two").is_symlink());
+    }
+
+    #[test]
+    fn commit_mode_conflicts_preserve_links_and_state() {
+        for (active, next) in [(COMMIT, AUTO_COMMIT), (AUTO_COMMIT, COMMIT)] {
+            let (_temp, repo, config) = fixture();
+            add_commit_modes(&repo);
+            Installation::load(&repo, &config)
+                .unwrap()
+                .apply(&BTreeSet::from([active.into()]))
+                .unwrap();
+            let state_before = fs::read(config.join(STATE)).unwrap();
+            // A replacement of the old mode cannot be silently left active.
+            fs::remove_file(config.join("skills").join(active)).unwrap();
+            fs::create_dir(config.join("skills").join(active)).unwrap();
+            let custom = config.join("skills").join(active).join("SKILL.md");
+            fs::write(&custom, "custom instructions").unwrap();
+            assert!(
+                Installation::load(&repo, &config)
+                    .unwrap()
+                    .apply(&BTreeSet::from([next.into()]))
+                    .is_err()
+            );
+            assert_eq!(fs::read_to_string(custom).unwrap(), "custom instructions");
+            assert!(!exists(&config.join("skills").join(next)).unwrap());
+            assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
+        }
     }
 
     #[test]

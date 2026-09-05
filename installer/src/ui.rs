@@ -1,4 +1,4 @@
-use crate::install::Installation;
+use crate::install::{AUTO_COMMIT, Installation};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::{
     DefaultTerminal, Frame,
@@ -102,7 +102,7 @@ fn render(
     let full_banner = frame.area().height >= 20
         && usize::from(frame.area().width) >= NORTH_BANNER.lines().map(str::len).max().unwrap_or(0);
     let [banner, header, body, footer] = Layout::vertical([
-        Constraint::Length(if full_banner { 6 } else { 1 }),
+        Constraint::Length(if full_banner { 5 } else { 1 }),
         Constraint::Length(5),
         Constraint::Min(3),
         Constraint::Length(5),
@@ -137,8 +137,13 @@ fn render(
         .skills
         .iter()
         .map(|name| {
+            let label = if name == AUTO_COMMIT {
+                "Auto commit"
+            } else {
+                name
+            };
             ListItem::new(format!(
-                "[{}] {name}",
+                "[{}] {label}",
                 if selected.contains(name) { "x" } else { " " }
             ))
         })
@@ -151,7 +156,7 @@ fn render(
         List::new(items)
             .block(Block::bordered().title(format!(
                 " Skills / {} enabled + optional OpenSpec ",
-                selected.len()
+                installation.resolved_skills(selected).map_or(selected.len(), |skills| skills.len())
             )))
             .highlight_style(
                 Style::default()
@@ -165,9 +170,9 @@ fn render(
     let help = if confirming {
         "Uninstall North and restore your original AGENTS.md?\nPress y to uninstall; n or Esc to return. Other OpenCode files are preserved."
     } else if installation.installed() {
-        "Up/Down or j/k: move   Space: toggle   a/n: all/no skills\nEnter: save changes   u: uninstall North   q/Esc: quit without changes"
+        "Up/Down or j/k: move   Space: toggle   a/n: all/no skill options\nEnter: save changes   u: uninstall North   q/Esc: quit without changes\nAuto commit: on commits automatically; off waits for your go-ahead."
     } else {
-        "Up/Down or j/k: move   Space: toggle   a/n: all/no skills\nEnter: install North   q/Esc: quit without changes"
+        "Up/Down or j/k: move   Space: toggle   a/n: all/no skill options\nEnter: install North   q/Esc: quit without changes\nAuto commit: on commits automatically; off waits for your go-ahead."
     };
     frame.render_widget(
         Paragraph::new(help)
@@ -222,6 +227,9 @@ mod tests {
                         .map(|cell| cell.symbol())
                         .collect();
                     assert!(text.contains("[x] explain-code"));
+                    assert!(text.contains("[x] Auto commit"));
+                    assert!(!text.contains("[x] commit"));
+                    assert!(!text.contains("[x] auto-commit"));
                     assert!(text.contains("[x] OpenSpec CLI (install if missing; npm global)"));
                     assert!(text.contains(if confirming {
                         "Confirm uninstall"
@@ -231,5 +239,37 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn unchecked_auto_commit_still_counts_the_manual_skill() {
+        let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let installation = Installation::load(repo, &temp.path().join("config")).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        terminal
+            .draw(|frame| {
+                render(
+                    frame,
+                    &installation,
+                    &BTreeSet::new(),
+                    &mut ListState::default().with_selected(Some(0)),
+                    false,
+                    false,
+                )
+            })
+            .unwrap();
+        let text: String = terminal
+            .backend()
+            .buffer()
+            .content
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+        assert_eq!(text.matches("[ ] Auto commit").count(), 1);
+        assert!(!text.contains("[ ] commit"));
+        assert!(text.contains("Skills / 1 enabled"));
     }
 }

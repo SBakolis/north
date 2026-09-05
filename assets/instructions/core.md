@@ -71,6 +71,11 @@ and resolves failures before reporting completion. A worker report alone is
 not verification. Preserve existing user changes and follow the user's scope
 and repository instructions for commits, branches, and integration.
 
+When finishing implementation in a Git repository, load the installed commit
+mode skill: `auto-commit` commits validated work automatically; `commit` prepares
+the commit and waits for the user's go-ahead unless already explicitly authorized.
+Only one mode is installed. The primary agent owns commits for delegated work.
+
 If the repository uses OpenSpec, read its project instructions and relevant
 requirements, design, and tasks as planning context. Keep any OpenSpec changes
 within the user's requested scope.

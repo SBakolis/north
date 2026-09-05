@@ -9,10 +9,18 @@ runs reuse the build. No North daemon or OpenCode plugin is installed.
 
 ## Choose skills
 
-On first installation, all bundled skills start checked. Use Up/Down (or j/k)
+On first installation, all skill options start checked. Use Up/Down (or j/k)
 to move, Space to enable or disable a skill, `a` to select all, and `n` to select
 none. Press Enter to apply or q/Esc to leave without changing your installation.
 Shared instructions, the `/north` command, and the four North agents are always included.
+
+**Auto commit** is a single checkbox, checked on first installation. When checked,
+the installer links `auto-commit`, which commits completed, validated work without
+an extra confirmation. When unchecked, it links `commit`, which prepares the commit
+and waits for your go-ahead. Both use `feat:`, `fix:`, or `chore:` messages. Exactly
+one mode is linked, including when `n` clears all options. Reruns preserve the mode;
+upgrading an older installation starts with Auto commit unchecked and adds `commit`
+when you apply. The mode affects local commits, not pushing to a remote.
 
 The optional **OpenSpec CLI** checkbox starts unchecked. Select it with Space
 to install OpenSpec if it is missing. The `a` and `n` shortcuts affect skills only.
@@ -45,9 +53,13 @@ The installer creates symlinks under
 | `skills/unity-ui` (if enabled) | `assets/skills/unity-ui/` |
 | `skills/north-sources` (if enabled) | `assets/skills/north-sources/` |
 | `skills/dry-skillify` (if enabled) | `assets/skills/dry-skillify/` |
+| `skills/subagent-usage` (if enabled) | `assets/skills/subagent-usage/` |
+| `skills/auto-commit` (Auto commit checked) | `assets/skills/auto-commit/` |
+| `skills/commit` (Auto commit unchecked) | `assets/skills/commit/` |
 
 Each skill directory contains a `SKILL.md`. The installer discovers bundled
-skills automatically and links each enabled directory separately. Unrelated
+skills automatically and links each enabled directory separately, treating the
+two commit skills as mutually exclusive modes of one option. Unrelated
 skills remain intact. Keep the checkout because the links point directly into it.
 Start a new OpenCode session to load the installed instructions and skills.
 
@@ -78,6 +90,9 @@ including dangling links. Disable a conflicting skill to leave it alone, or
 move the conflicting file aside yourself. An existing untracked
 `AGENTS-backup.md` also blocks installation so it cannot be overwritten.
 Symlinks in place of the OpenCode, commands, agents, or skills directory are refused.
+An untracked or user-replaced commit skill also blocks switching to the opposite
+mode, so both modes cannot accidentally remain active. Move that conflict aside
+before switching; the installer will not delete it.
 
 The installer records link ownership and whether it created a backup in
 `.north-installation.json`. Keep this file and `AGENTS-backup.md` until uninstall.
@@ -119,16 +134,19 @@ An interactive terminal is required by default. Scripts and CI can explicitly
 select an action using the same installation logic:
 
 ```sh
-./install.sh --all                         # Enable all bundled skills
+./install.sh --all                         # Enable all options, including Auto commit
 ./install.sh --all --openspec              # Also install OpenSpec if missing
 ./install.sh --openspec                    # Keep skill selection; ensure OpenSpec
-./install.sh --skills explain-code,unity-ui # Enable exactly these skills
-./install.sh --skills ''                   # Disable all skills; keep North agents
+./install.sh --skills explain-code,unity-ui # These skills plus confirmation-based commit
+./install.sh --skills explain-code,auto-commit # Explain code with Auto commit enabled
+./install.sh --skills ''                   # Only commit; keep shared instructions/agents
 ./install.sh --uninstall                   # Remove North and restore the backup
 ./install.sh --help
 ```
 
 `--openspec` can be combined with `--all` or `--skills`, but not `--uninstall`.
+For `--skills`, including `auto-commit` checks Auto commit; omitting it selects
+`commit`. Explicit `commit` is also accepted; requesting both modes is an error.
 Used alone on first installation, it enables all bundled skills. `--all` by
 itself only selects bundled skills and does not install OpenSpec.
 

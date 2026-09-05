@@ -12,8 +12,9 @@ Usage: ./install.sh [--all | --skills NAME,NAME] [--openspec]
        ./install.sh --uninstall
 
 With no options, open the interactive skill checklist.
-  --all          Install North with all bundled skills
-  --skills LIST  Install/update with exactly these skills (use '' for none)
+  --all          Install North with all options enabled, including Auto commit
+  --skills LIST  Select skills; include auto-commit to enable Auto commit
+                 Otherwise commit is linked (use '' for only commit)
   --openspec     Install OpenSpec globally with npm if missing (Node.js 20.19.0+)
                  Alone, keeps the current skill selection (all on first install)
   --uninstall    Remove North and restore AGENTS-backup.md
@@ -115,7 +116,7 @@ fn run() -> Result<()> {
             println!(
                 "North installed in {} with {} enabled skills. Rerun ./install.sh to manage or uninstall it.",
                 installation.config.display(),
-                selected.len()
+                installation.resolved_skills(&selected)?.len()
             );
             if openspec {
                 openspec::ensure_installed()
