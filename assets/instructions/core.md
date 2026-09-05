@@ -73,5 +73,4 @@ and repository instructions for commits, branches, and integration.
 
 If the repository uses OpenSpec, read its project instructions and relevant
 requirements, design, and tasks as planning context. Keep any OpenSpec changes
-within the user's requested scope. Optional plugins such as Open Loop are
-configured separately; subagents must not invoke `/loop`.
+within the user's requested scope.
