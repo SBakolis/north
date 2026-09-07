@@ -16,6 +16,21 @@ and descriptions and loads the full instructions through its native skill tool
 when relevant. Skills guide how an agent performs a task; subagents provide
 delegated execution. Both primary agents and subagents can use skills.
 
+Engineering skills provide focused methods for requirements clarification, bug
+diagnosis, test design, code and architecture review, domain modeling, research,
+prototyping, handoffs, and skill evaluation. They are independently selectable;
+agents load only installed methods relevant to the assignment. The planner uses
+them to propose decisions and acceptance checks, the worker to implement and
+validate scoped behavior, and the verifier to review changes and supplied evidence.
+The verifier's permissions still leave test execution to the primary agent.
+
+These methods reuse the authoritative project requirements, OpenSpec artifacts,
+and North plan rather than creating another task lifecycle. The primary agent
+owns shared documentation and progress updates. A read-only request or agent
+returns proposed content without saving it. Skill evaluation checks observable
+behavior in isolated scenarios; installer checks alone do not establish that a
+skill selects or performs the right work.
+
 The `north-sources` skill makes `<working-project>/north/` the persistent store
 for North's supporting artifacts and consults relevant saved context on each
 task. `dry-skillify` records user-supported preference observations in
@@ -24,6 +39,10 @@ into `north/skills/<name>/SKILL.md`. North reads matching generated skills direc
 they do not need global installation. These are agent-driven Markdown workflows,
 not background monitoring. The primary agent consolidates shared records to
 avoid conflicting writes from subagents.
+When `north-sources` is disabled, shared instructions retain basic context lookup
+and storage in the configured North directory or `<working-project>/north/`.
+Disabling `dry-skillify` stops preference recording and skill generation; current
+user preferences and relevant previously saved skills still guide the task.
 
 The primary agent scopes the work, delegates planning or implementation when
 useful, waits for dependencies, reviews the diff, and runs acceptance checks.

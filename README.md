@@ -65,6 +65,31 @@ and OpenCode's native subagents.
 
 OpenCode discovers skill descriptions and loads matching guidance on demand.
 
+Engineering methods:
+
+- [clarify-requirements](assets/skills/clarify-requirements/SKILL.md): resolve
+  consequential gaps in requested behavior and define concrete acceptance examples.
+- [diagnosing-bugs](assets/skills/diagnosing-bugs/SKILL.md): investigate reported
+  failures with reproductions, targeted evidence, and checks of the actual symptom.
+- [test-design](assets/skills/test-design/SKILL.md): choose behavior checks and
+  independent expectations that detect meaningful regressions.
+- [code-review](assets/skills/code-review/SKILL.md): review scoped changes against
+  requirements, caller behavior, and repository conventions with actionable evidence.
+- [architecture-review](assets/skills/architecture-review/SKILL.md): assess
+  responsibilities, dependencies, and design tradeoffs within the requested scope.
+- [domain-modeling](assets/skills/domain-modeling/SKILL.md): clarify product terms,
+  relationships, and business rules in the project's authoritative documentation.
+- [research](assets/skills/research/SKILL.md): investigate technical questions using
+  primary sources, version context, and cited findings.
+- [prototype](assets/skills/prototype/SKILL.md): answer an uncertain design question
+  with a bounded, runnable experiment and a recorded outcome.
+- [handoff](assets/skills/handoff/SKILL.md): prepare a continuation brief with
+  artifact pointers, actual execution state, and the next actions.
+- [skill-evaluation](assets/skills/skill-evaluation/SKILL.md): evaluate skill
+  selection and observable behavior using isolated, realistic scenarios.
+
+Project context and delivery:
+
 - [explain-code](assets/skills/explain-code/SKILL.md): explain existing code in
   standard technical English with verified line references and symbol definitions.
 - [unity-ui](assets/skills/unity-ui/SKILL.md): author Unity UI in the Editor as
@@ -86,3 +111,8 @@ North reads applicable generated preference skills on later tasks. These records
 are project-local; the kit checkout is not a shared store for every project.
 Implementation files and explicitly located deliverables keep their required
 locations. Rerun `./install.sh` after updating to choose newly added bundled skills.
+
+Engineering skills guide the existing primary agent and subagents. Select the
+methods needed for the task; small changes can proceed without an interview,
+prototype, or execution plan. Skills reuse existing OpenSpec requirements and
+North evidence, and keep the current commit mode and agent permissions in force.

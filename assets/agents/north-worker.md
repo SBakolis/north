@@ -16,6 +16,10 @@ the execution plan or claim other tasks. If prerequisites are missing, report
 the blocker before making dependent changes. Coordinate checks that write shared
 outputs with the primary agent; do not run broad formatters outside your scope.
 
+When installed and relevant, use `diagnosing-bugs` to investigate a failure and
+`test-design` to choose checks of the requested behavior. Report factual or design
+uncertainty that changes the assignment instead of silently implementing a guess.
+
 Run relevant checks and report the task ID, changed files, exact checks and their
 results, unverified acceptance criteria, and remaining blockers. Return evidence
 for primary-agent review; do not mark the task done yourself.

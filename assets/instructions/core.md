@@ -1,14 +1,28 @@
 # North
 
-At the start of each task, load `north-sources` and consult relevant saved context
-in the working project's `north/` directory, including applicable generated
-preference skills. Save North's supporting output there as the task progresses.
-When the user expresses or corrects a reusable working preference, load
-`dry-skillify` to record evidence and promote supported recurring patterns.
+At the start of each task, consult relevant saved North context, including
+applicable generated preference skills. Use `north-sources` when installed to
+resolve and maintain these records. Otherwise use the configured North output
+directory or `<project-root>/north/`, resolved from the working project rather
+than the kit checkout, and read relevant artifacts and preference skills directly.
+Save supporting output there when writing is within scope; read-only requests
+return proposed updates without saving them. Keep implementation files and
+authoritative project artifacts in their required locations.
+
+When the user expresses or corrects a reusable working preference, use
+`dry-skillify` if installed to record evidence and promote supported patterns.
+Without it, follow the current preference without generating learned skills.
 
 Load relevant skills through OpenCode's native skill tool when their descriptions
 match the task. Skills supply task-specific guidance to primary agents and
 subagents; they do not require a separate execution process.
+
+Use optional engineering skills when installed and relevant; they are not
+prerequisites for ordinary work. Reuse established requirements and decisions.
+Scale research, clarification, testing, and review to the task's uncertainty
+and consequences.
+Skills do not expand an agent's permissions or assigned scope. Read-only agents
+return proposed artifact updates for the primary agent to consolidate.
 
 Use OpenCode's native subagents through the Task tool to delegate bounded work.
 Handle small changes directly. For larger work, coordinate from the primary

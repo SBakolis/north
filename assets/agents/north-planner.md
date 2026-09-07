@@ -20,5 +20,10 @@ and generated outputs in scope planning; only recommend parallel work for
 independent tasks. Include final integration checks after implementation tasks.
 Read relevant OpenSpec artifacts when present.
 
+When installed and relevant, use `clarify-requirements` for unresolved behavior,
+`architecture-review` for consequential design choices, and `test-design` for
+acceptance evidence. Reuse settled decisions; return remaining questions and
+proposed documentation changes to the primary agent with the plan.
+
 Remain read-only. Do not save or implement the plan or delegate further. Return
 the plan and any blockers to the primary agent, which owns persistence and status.

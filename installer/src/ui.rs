@@ -108,7 +108,7 @@ fn render(
     openspec: bool,
     merge: bool,
 ) {
-    // Keep both installation options visible in a standard 80x24 terminal.
+    // Leave more room for the scrolling checklist when the catalog is long.
     let full_banner = usize::from(frame.area().height) >= 19 + installation.skills.len()
         && usize::from(frame.area().width) >= NORTH_BANNER.lines().map(str::len).max().unwrap_or(0);
     let [banner, header, body, footer] = Layout::vertical([
@@ -222,43 +222,60 @@ mod tests {
             .unwrap();
         let temp = tempfile::tempdir().unwrap();
         let installation = Installation::load(repo, &temp.path().join("config")).unwrap();
+        let mut labels: Vec<_> = installation
+            .skills
+            .iter()
+            .map(|name| {
+                if name == AUTO_COMMIT {
+                    "Auto commit"
+                } else {
+                    name
+                }
+            })
+            .collect();
+        labels.extend([
+            "OpenSpec CLI (install if missing; npm global)",
+            "Merge installations (opencode.json / opencode.jsonc)",
+        ]);
         for (width, height) in [(80, 24), (35, 12), (10, 5)] {
             let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
             for confirming in [false, true] {
-                terminal
-                    .draw(|frame| {
-                        render(
-                            frame,
-                            &installation,
-                            &installation.selected_skills(),
-                            &mut ListState::default().with_selected(Some(0)),
-                            confirming,
-                            true,
-                            true,
-                        )
-                    })
-                    .unwrap();
-                if width == 80 {
-                    let text: String = terminal
-                        .backend()
-                        .buffer()
-                        .content
-                        .iter()
-                        .map(|cell| cell.symbol())
-                        .collect();
-                    assert!(text.contains("[x] explain-code"));
-                    assert!(text.contains("[x] Auto commit"));
-                    assert!(!text.contains("[x] commit"));
-                    assert!(!text.contains("[x] auto-commit"));
-                    assert!(text.contains("[x] OpenSpec CLI (install if missing; npm global)"));
-                    assert!(
-                        text.contains("[x] Merge installations (opencode.json / opencode.jsonc)")
-                    );
-                    assert!(text.contains(if confirming {
-                        "Confirm uninstall"
-                    } else {
-                        "Enter: install North"
-                    }));
+                let mut list = ListState::default();
+                for (index, label) in labels.iter().enumerate() {
+                    list.select(Some(index));
+                    terminal
+                        .draw(|frame| {
+                            render(
+                                frame,
+                                &installation,
+                                &installation.selected_skills(),
+                                &mut list,
+                                confirming,
+                                true,
+                                true,
+                            )
+                        })
+                        .unwrap();
+                    if width == 80 {
+                        let text: String = terminal
+                            .backend()
+                            .buffer()
+                            .content
+                            .iter()
+                            .map(|cell| cell.symbol())
+                            .collect();
+                        assert!(
+                            text.contains(&format!("> [x] {label}")),
+                            "Selected option {label} should be visible after scrolling"
+                        );
+                        assert!(!text.contains("[x] commit"));
+                        assert!(!text.contains("[x] auto-commit"));
+                        assert!(text.contains(if confirming {
+                            "Confirm uninstall"
+                        } else {
+                            "Enter: install North"
+                        }));
+                    }
                 }
             }
         }

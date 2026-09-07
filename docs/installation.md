@@ -13,6 +13,9 @@ On first installation, all skill options start checked. Use Up/Down (or j/k)
 to move, Space to enable or disable a skill, `a` to select all, and `n` to select
 none. Press Enter to apply or q/Esc to leave without changing your installation.
 Shared instructions, the `/north` command, and the four North agents are always included.
+The checklist scrolls with the selection when the skills exceed the terminal height.
+See the [skill catalog](../README.md#skills) for each method's purpose. Skills are
+independent options; enable the ones that fit your work.
 
 **Auto commit** is a single checkbox, checked on first installation. When checked,
 the installer links `auto-commit`, which commits completed, validated work without
@@ -49,11 +52,7 @@ The installer creates symlinks under
 | `agents/north-worker.md` | `assets/agents/north-worker.md` |
 | `agents/north-verifier.md` | `assets/agents/north-verifier.md` |
 | `agents/north-conflict-resolver.md` | `assets/agents/north-conflict-resolver.md` |
-| `skills/explain-code` (if enabled) | `assets/skills/explain-code/` |
-| `skills/unity-ui` (if enabled) | `assets/skills/unity-ui/` |
-| `skills/north-sources` (if enabled) | `assets/skills/north-sources/` |
-| `skills/dry-skillify` (if enabled) | `assets/skills/dry-skillify/` |
-| `skills/subagent-usage` (if enabled) | `assets/skills/subagent-usage/` |
+| `skills/<name>` (each enabled skill in the catalog) | `assets/skills/<name>/` |
 | `skills/auto-commit` (Auto commit checked) | `assets/skills/auto-commit/` |
 | `skills/commit` (Auto commit unchecked) | `assets/skills/commit/` |
 
