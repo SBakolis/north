@@ -11,15 +11,10 @@ start a session, dispatch a task, or prove that a task is complete.
 
 ## Establish the current state
 
-Read the user's latest scope and constraints, the relevant plan or task artifact,
-and the current checkout. Reconcile saved status with changed files, validation
-evidence, and available native session state. Record when execution state was
-observed and identify anything that could not be established.
-
-Keep the authoritative plan where the project requires it. In North plans, retain
-stable task IDs and the existing pending, running, needs-review, done, and blocked
-states. A returned worker result still needs primary review; a status label alone
-does not establish completion.
+Load `north-sources` for artifact conventions. Read the user's latest scope,
+constraints, relevant plan, and current checkout. For a North plan, follow its
+[plan contract](../north-sources/references/plan-format.md) to reconcile evidence
+and execution state. Record when state was observed and what remains unknown.
 
 ## Prepare the handoff
 
@@ -42,21 +37,12 @@ discussion that no longer affects the task. Distinguish facts from assumptions.
 
 ## Resume safely
 
-On receipt, reread the authoritative artifacts and compare them with the current
-workspace and available session state. Check that cited evidence still applies
-to the current changes. Review partial edits before continuing or retrying.
-
-Do not redispatch a running task until the previous execution is known to have
-stopped. If its state cannot be established, report a blocker; independent work
-may continue if it cannot conflict. Revise stale dependencies or acceptance
-evidence before relying on completed tasks.
-
-Only the primary agent updates a shared plan or consolidated handoff record.
-Delegated agents return proposed updates within their assigned scope. Preparing
-a handoff does not authorize sending it to another person or starting more work.
+When resuming a North plan, use the contract's recovery procedure before relying
+on saved status. For other work, recheck cited artifacts and observed execution
+state against the current workspace. The active execution workflow decides which
+tasks may proceed; a handoff does not bypass a pipeline layer barrier. Preparing
+one does not authorize sending it to another person or starting more work.
 
 Return the handoff in the response unless persistent output is requested or part
-of the established workflow. When saving, honor the configured North directory
-or use `<project-root>/north/handoffs/`, referencing the existing plan instead of
-creating a competing one. Consult `north-sources` if available; no other skill is
-required. For read-only requests, inspect and report without modifying records.
+of the established workflow. When saving, use the handoff location from
+`north-sources` and reference the existing plan under the shared artifact rules.

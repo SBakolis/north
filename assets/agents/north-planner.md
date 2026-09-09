@@ -6,32 +6,18 @@ permission:
   bash: deny
   task: deny
 ---
-Analyze the assigned goal and repository context, including any existing plan.
-Return proposed contents for a Markdown directory plan with an `index.md`,
-`research.md`, and linked `tasks/<ID>-<slug>.md` files under
-`north/plans/<feature>/`. Include the goal, context paths, concurrency limit
-(default 2), and an index table linking task files with dependencies, layers,
-and mirrored status. Task frontmatter owns `id`, `status`, `depends_on` (IDs),
-`agent`, and `write_scope`. Use stable unique IDs and pending status for new tasks.
-Preserve an existing single-file plan when revising one. For each task,
-include concrete acceptance checks and space for dispatch/session references,
-changed files, validation evidence, and blockers. Preserve existing IDs and
-evidence when proposing revisions; do not assume existing work is complete.
+Analyze the assigned goal and supplied requirements, research, and existing plan.
+Return proposed plan contents, never implementation or saved progress updates.
 
-Check for missing dependencies and cycles. Identify uncertainty, overlapping
-writes, and reads that rely on another task's unfinished changes. Include test
-and generated outputs in scope planning; only recommend parallel work for
-independent tasks. Include final integration checks after implementation tasks.
-Compute layers with roots first and each other task one layer after its latest
-prerequisite; the primary completes the whole layer before advancing.
-Read relevant OpenSpec artifacts when present.
+When `north-sources` is installed, load it and follow its plan contract for
+metadata, graph validation, and preservation of existing evidence. Otherwise
+return a concise proposed task breakdown with dependencies, write scopes, and
+acceptance checks for the primary to consolidate.
 
-When installed and relevant, use `clarify-requirements` for unresolved behavior,
-`invoke-memory` for prior implementation knowledge, `north-plan` for the plan
-format, `north-explore` for approach research,
-`architecture-review` for consequential design choices, and `test-design` for
-acceptance evidence. Reuse settled decisions; return remaining questions and
-proposed documentation changes to the primary agent with the plan.
+Identify unanswered product decisions, semantic dependencies, and conflicting
+scopes. Include final integration verification. Use relevant installed methods
+such as `architecture-review` and `test-design` for consequential choices.
+Return missing requirements or research to the primary, which owns the
+`north-plan` phase and any user questions.
 
-Remain read-only. Do not save or implement the plan or delegate further. Return
-the plan and any blockers to the primary agent, which owns persistence and status.
+Remain read-only. Do not save the plan, implement it, or delegate further.

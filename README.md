@@ -128,13 +128,13 @@ Project context and delivery:
   standard technical English with verified line references and symbol definitions.
 - [unity-ui](assets/skills/unity-ui/SKILL.md): author Unity UI in the Editor as
   saved, editable assets, with runtime scripts reserved for behavior and data.
-- [north-sources](assets/skills/north-sources/SKILL.md): consult and save North's
-  supporting output in each working project's `north/` directory.
+- [north-sources](assets/skills/north-sources/SKILL.md): own shared artifact
+  locations and the plan contract; included automatically by consuming skills.
 - [dry-skillify](assets/skills/dry-skillify/SKILL.md): record recurring user
   preferences as Markdown in `north/dry/` and automatically create scoped skills
   in `north/skills/` after three distinct user-supported observations.
-- [subagent-usage](assets/skills/subagent-usage/SKILL.md): delegate substantial work
-  in dependency order, isolate implementation in Git worktrees, and merge verified
+- [subagent-usage](assets/skills/subagent-usage/SKILL.md): assign bounded work,
+  isolate implementation in Git worktrees, and merge verified
   results back into the original source branch.
 - **Auto commit** is a **Workflow** option for two skills:
   [auto-commit](assets/skills/auto-commit/SKILL.md) commits validated work automatically

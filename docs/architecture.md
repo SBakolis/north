@@ -31,12 +31,11 @@ agents load only installed methods relevant to the assignment. The planner uses
 them to propose decisions and acceptance checks, the worker to implement and
 validate scoped behavior, and the verifier to review changes and supplied evidence.
 The verifier's permissions still leave test execution to the primary agent.
-The pipeline group includes prerequisites during installation: `north-plan`
-requires `clarify-requirements`, `north-explore`, and `invoke-memory`;
-`north-explore` requires `research`; and `north-execute` requires `invoke-memory`
-and `subagent-usage`. These shared engineering skills remain ordinary selectable
-skills when the pipeline is off and are required when it is on. The five pipeline
-skills are controlled by the group instead of individual checklist rows.
+The pipeline group includes `clarify-requirements`, `research`, `subagent-usage`,
+and `north-sources` as shared dependencies. Standalone methods also include
+`north-sources` when they use its artifact conventions or plan contract. These
+dependencies remain ordinary selectable skills outside the pipeline; the five
+pipeline skills are controlled by their group.
 
 These methods reuse the authoritative project requirements, OpenSpec artifacts,
 and North plan rather than creating another task lifecycle. The primary agent
@@ -45,16 +44,17 @@ returns proposed content without saving it. Skill evaluation checks observable
 behavior in isolated scenarios; installer checks alone do not establish that a
 skill selects or performs the right work.
 
-The `north-sources` skill makes `<working-project>/north/` the persistent store
-for North's supporting artifacts and consults relevant saved context on each
-task. `dry-skillify` records user-supported preference observations in
+The `north-sources` skill owns artifact locations and the shared plan contract.
+`invoke-memory` owns implementation-memory retrieval; `north-save` owns its
+persistence. Shared instructions route context lookup and define primary-agent
+ownership and read-only behavior. `dry-skillify` records preference observations in
 `north/dry/*.md` and promotes consistent patterns after three distinct instances
 into `north/skills/<name>/SKILL.md`. North reads matching generated skills directly;
 they do not need global installation. These are agent-driven Markdown workflows,
 not background monitoring. The primary agent consolidates shared records to
 avoid conflicting writes from subagents.
-When `north-sources` is disabled, shared instructions retain basic context lookup
-and storage in the configured North directory or `<working-project>/north/`.
+When no selected skill requires `north-sources`, it can be disabled; shared
+instructions retain basic context lookup and a default artifact root.
 Disabling `dry-skillify` stops preference recording and skill generation; current
 user preferences and relevant previously saved skills still guide the task.
 
@@ -62,6 +62,12 @@ The primary agent scopes the work, delegates planning or implementation when
 useful, waits for dependencies, reviews the diff, and runs acceptance checks.
 Workers return changes and evidence. The verifier provides a read-only review;
 the conflict resolver handles explicitly assigned conflicts.
+
+`north-plan` delegates clarification to `clarify-requirements`, and
+`north-explore` delegates research methods to `research`. `north-execute` owns
+the pipeline lifecycle, while `subagent-usage` owns assignment and integration
+mechanics. Their common plan schema and recovery rules are maintained once in
+the [plan contract](../assets/skills/north-sources/references/plan-format.md).
 
 `/north-plan <prompt>` uses the existing requirements clarification skill to
 resolve consequential questions, `invoke-memory` to consult prior implementation

@@ -46,10 +46,7 @@ excluded unless requested. Avoid implementation-shaped acceptance criteria.
 
 Use an existing relevant requirement or task artifact as the authoritative
 record. Respect the project's OpenSpec workflow and requested editing scope.
-When a separate supporting record is useful and writing is permitted, the primary
-agent saves it under the configured North output directory, otherwise under
-`<project-root>/north/`, resolved from the working project rather than the kit.
-Create directories only when saving; link to authoritative artifacts instead of
-duplicating them. A planner or read-only reviewer returns proposed updates.
+When a separate supporting record is useful, load `north-sources` for its
+location and apply North's shared artifact and ownership rules.
 An adequate requirements summary does not introduce a new approval gate before
 already authorized implementation.

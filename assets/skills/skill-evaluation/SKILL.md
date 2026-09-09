@@ -58,8 +58,6 @@ Change instructions only when an observed failure or clear contradiction support
 the change. Recheck affected cases after a revision and keep claims bounded to
 the scenarios exercised. Do not turn every isolated example into a universal rule.
 
-The primary agent consolidates shared results. Reuse the relevant evaluation
-record, honoring the configured North output directory or using
-`<project-root>/north/evaluations/`; use `north-sources` when available without
-requiring its installation. In a read-only task, review existing evidence and
-return proposed cases or changes without writing fixtures or running mutations.
+When saving evaluation results, load `north-sources` for the evidence location
+and apply the shared artifact rules. In a read-only evaluation, return proposed
+cases without writing fixtures or running mutations.

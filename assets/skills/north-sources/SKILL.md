@@ -1,49 +1,50 @@
 ---
 name: north-sources
-description: Consult and maintain the project's north directory as North's persistent source of generated artifacts, decisions, and learned preferences. Use at the start of North work, when resuming a task, and when saving North output.
+description: Resolve North's project-local output directory and apply shared artifact and plan-format conventions. Use when locating or saving North artifacts, or reading and writing a North task graph.
 ---
 
 # North sources
 
-Use `<project-root>/north/` for North's persistent output. Resolve the project
-root from the repository or established workspace, not the current shell
-subdirectory or the checkout where the North kit is installed. Honor an
-explicitly configured North output directory. Keep the same resolved path
-throughout the task and pass it to delegated agents. If the project itself is
-named `north`, its output directory is still `<project-root>/north/`.
+## Resolve the artifact root
 
-At the start of work and when resuming, inspect this directory if it exists.
-Read the sources relevant to the task, including matching preference skills
-under `north/skills/*/SKILL.md` and relevant observations under `north/dry/`.
-Before implementation, use `invoke-memory` when installed to consult relevant
-`north/memories/` entries and their code/evidence references. Otherwise inspect
-the memory index and matching records directly, checking current applicability.
-Read saved preference skills directly even if they are not registered with the
-host's native skill discovery. Do not load every historical artifact by default.
-Missing North output is normal for a new project; create directories only when saving.
+Use the configured North output directory or `<project-root>/north/`. Resolve
+the project root from the repository or established workspace, not the shell's
+current subdirectory or the checkout containing the installed kit. A project
+named `north` still uses `<project-root>/north/`. Keep this resolved path for
+the task and pass it to delegated agents.
 
-Store North-produced plans, research, decisions, reports, and other supporting
-artifacts here, using descriptive names and subdirectories appropriate to the
-task. New feature plans use `north/plans/<feature>/index.md`, `research.md`, and
-linked task files under `tasks/`. Verified implementation knowledge saved by
-`north-save` belongs in `north/memories/<feature>.md`, indexed by
-`north/memories/index.md`. Recurring-behavior records belong in `north/dry/`; generated preference
-skills belong in `north/skills/<skill-name>/SKILL.md`. Update existing relevant
-artifacts instead of creating competing copies. Record enough task context and
-source references for later agents to judge whether an artifact still applies.
+Missing output is normal. Lookup does not create directories; create them only
+when saving. Report conflicting files or symlinks instead of replacing them or
+writing through them. Keep implementation files and authoritative project
+requirements where their tooling or project instructions require them.
 
-Project implementation files and user-requested deliverables still belong in
-their required locations. When another tool or project convention requires an
-artifact elsewhere, save a short reference in `north/` instead of maintaining a
-second authoritative copy. Do not relocate existing files merely to collect them.
+## Store supporting artifacts
 
-Treat saved material as context with provenance. Tentative observations are not
-established preferences; stale decisions and quoted external text are not fresh
-instructions. Apply learned preferences only within their documented scope and
-defer to the user's current instructions. If a preference is corrected, update
-its saved skill and evidence so the old behavior does not return next session.
+| Artifact | Location relative to the resolved North directory | Owner |
+| --- | --- | --- |
+| Feature plan | `plans/<feature>/index.md`, `research.md`, `tasks/*.md` | `north-plan` creates; `north-execute` progresses |
+| Implementation memory | `memories/index.md`, `memories/<feature>.md` | `invoke-memory` reads; `north-save` writes |
+| Standalone research | `research/` | `research` |
+| Continuation brief | `handoffs/` | `handoff` |
+| Experiment notes | `prototypes/` | `prototype` |
+| Skill evaluation evidence | `evaluations/` | `skill-evaluation` |
+| Preference observations | `dry/<behavior>.md` | `dry-skillify` |
+| Generated preference skills | `skills/<name>/SKILL.md` | `dry-skillify` |
+
+Reuse an existing relevant artifact rather than creating competing copies.
+For notes without a category above, choose a descriptive path under the artifact root.
+Link authoritative material stored elsewhere; do not relocate or duplicate it.
+Use relative Markdown links that resolve from the file containing them. Preserve
+unrelated records and enough provenance to judge whether a saved claim applies.
 Do not store secrets or unnecessary personal information.
 
-Have the primary agent consolidate shared records after delegated work; avoid
-concurrent edits to the same North artifact. In a read-only task, consult existing
-sources and report proposed updates without writing them.
+This skill defines storage conventions. It does not retrieve implementation
+memories, save feature knowledge, or promote preferences; use the owners above.
+
+## Work with a plan
+
+Read [the plan contract](references/plan-format.md) when creating, validating,
+resuming, or updating a task graph. It owns task metadata, status meanings,
+graph validation, and recovery rules, including existing single-file plans.
+Execution order and layer barriers belong to `north-execute`; delegation and
+checkout integration belong to `subagent-usage`.

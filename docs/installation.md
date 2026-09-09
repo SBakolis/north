@@ -30,9 +30,14 @@ included. See the [skill catalog](../README.md#skills) for each method's purpose
 **North pipeline** installs `/north-plan`, `/north-execute`, and `/north-save`
 together with `north-plan`, `north-explore`, `north-execute`, `north-save`, and
 `invoke-memory`. These five skills do not appear as individual checklist rows.
-The group also requires `clarify-requirements`, `research`, and `subagent-usage`;
+The group also requires `clarify-requirements`, `research`, `subagent-usage`, and `north-sources`;
 the checklist marks automatically included skills as required. These shared
 skills remain individually selectable when the pipeline is off.
+
+`north-sources` supplies shared storage conventions and the plan contract. The
+installer also includes it for standalone research, clarification, delegation,
+handoff, domain modeling, prototype, skill evaluation, and preference-learning
+skills. Those selections do not enable pipeline commands.
 
 Disabling **North pipeline** removes its owned command and skill links. Project
 plans and memories remain intact. Reruns preserve the group setting. When

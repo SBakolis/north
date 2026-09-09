@@ -533,7 +533,12 @@ mod tests {
         let selected = BTreeSet::from([NORTH_PIPELINE.into()]);
         let rows = entries(&installation);
         let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
-        for name in ["clarify-requirements", "research", "subagent-usage"] {
+        for name in [
+            "clarify-requirements",
+            "research",
+            "subagent-usage",
+            "north-sources",
+        ] {
             let index = rows
                 .iter()
                 .position(|entry| *entry == Entry::Skill(name.into()))
@@ -553,7 +558,7 @@ mod tests {
                 .unwrap();
             let text = screen(&terminal);
             assert!(text.contains(&format!("> [+] {name} (required)")));
-            assert!(text.contains("Options / 9 skills enabled"));
+            assert!(text.contains("Options / 10 skills enabled"));
             assert!(text.contains("[+]: required by enabled options."));
         }
         assert_eq!(selected, BTreeSet::from([NORTH_PIPELINE.into()]));

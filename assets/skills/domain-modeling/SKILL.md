@@ -49,10 +49,6 @@ repetition does not turn a business rule into a learned preference skill.
 
 Use the existing glossary, specification, or design document when it owns these
 facts, and follow the project's OpenSpec workflow where applicable. Persist only
-when useful and within the task's write scope. If no authoritative location exists,
-the primary agent may save a concise record under the configured North output
-directory, otherwise `<project-root>/north/`, resolved from the working project
-rather than the kit. Create directories only when saving. Include source paths
-and replace superseded decisions explicitly; link to existing artifacts rather
-than copying them. Subagents propose shared-record updates to the primary agent.
-The planner and other read-only tasks return the model without writing files.
+when useful and within the task's write scope. If a supporting North record is
+needed, load `north-sources` and apply the shared artifact rules. Include source
+paths and explicitly replace superseded decisions.

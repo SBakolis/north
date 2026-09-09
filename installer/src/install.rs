@@ -29,9 +29,24 @@ pub fn pipeline_enabled(selected: &BTreeSet<String>) -> bool {
 
 fn skill_dependencies(name: &str) -> &'static [&'static str] {
     match name {
-        "north-plan" => &["clarify-requirements", "north-explore", "invoke-memory"],
+        "north-plan" => &[
+            "north-sources",
+            "clarify-requirements",
+            "north-explore",
+            "invoke-memory",
+        ],
         "north-explore" => &["research"],
-        "north-execute" => &["invoke-memory", "subagent-usage"],
+        "north-execute" => &["north-sources", "invoke-memory", "subagent-usage"],
+        "north-save"
+        | "invoke-memory"
+        | "subagent-usage"
+        | "research"
+        | "clarify-requirements"
+        | "handoff"
+        | "dry-skillify"
+        | "domain-modeling"
+        | "prototype"
+        | "skill-evaluation" => &["north-sources"],
         _ => &[],
     }
 }
@@ -745,6 +760,7 @@ mod tests {
             "north-execute",
             "north-save",
             "invoke-memory",
+            "north-sources",
             "clarify-requirements",
             "research",
             "subagent-usage",
@@ -759,6 +775,34 @@ mod tests {
                 "command",
             )
             .unwrap();
+        }
+    }
+
+    #[test]
+    fn shared_plan_contract_is_available_without_enabling_pipeline() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let config = temp.path().join("config");
+        let contract = "skills/north-sources/references/plan-format.md";
+        let expected = fs::read_to_string(repo.join("assets").join(contract)).unwrap();
+        for name in [
+            "subagent-usage",
+            "handoff",
+            "research",
+            "clarify-requirements",
+            "dry-skillify",
+            "domain-modeling",
+            "prototype",
+            "skill-evaluation",
+        ] {
+            let installation = Installation::load(repo, &config).unwrap();
+            installation.apply(&BTreeSet::from([name.into()])).unwrap();
+            assert!(config.join("skills").join(name).is_symlink());
+            assert_eq!(fs::read_to_string(config.join(contract)).unwrap(), expected);
+            assert!(!config.join("skills/north-plan").exists());
+            for command in PIPELINE_COMMANDS {
+                assert!(!config.join("commands").join(command).exists());
+            }
         }
     }
 
@@ -782,6 +826,7 @@ mod tests {
             "north-execute",
             "north-save",
             "invoke-memory",
+            "north-sources",
             "clarify-requirements",
             "research",
             "subagent-usage",
@@ -811,7 +856,7 @@ mod tests {
             installation
                 .resolved_skills(&BTreeSet::from(["research".into()]))
                 .unwrap(),
-            BTreeSet::from([COMMIT.into(), "research".into()])
+            BTreeSet::from([COMMIT.into(), "research".into(), "north-sources".into()])
         );
     }
 
@@ -839,6 +884,7 @@ mod tests {
             installed.selected_skills(),
             BTreeSet::from([
                 NORTH_PIPELINE.into(),
+                "north-sources".into(),
                 "clarify-requirements".into(),
                 "research".into(),
                 "subagent-usage".into(),

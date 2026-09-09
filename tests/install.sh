@@ -54,7 +54,7 @@ run --skills commit
 
 # One pipeline selection controls all phase skills, memory invocation, and commands.
 run --skills north-pipeline
-for skill in north-plan north-explore north-execute north-save invoke-memory clarify-requirements research subagent-usage commit; do
+for skill in north-plan north-explore north-execute north-save invoke-memory north-sources clarify-requirements research subagent-usage commit; do
     [ "$(readlink "$config/skills/$skill")" = "$root/assets/skills/$skill" ]
 done
 for command in north north-plan north-execute north-save; do

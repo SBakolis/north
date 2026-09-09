@@ -5,8 +5,8 @@ description: Record recurring user preferences in north/dry Markdown files and t
 
 # DRY skillify
 
-Use the project output directory resolved by `north-sources`. Record reusable
-preferences about how the user wants work performed, keeping each preference
+Load `north-sources` for the project output directory and storage conventions.
+Record reusable preferences about how the user wants work performed, keeping each preference
 within the context supported by the evidence. Task requirements that happen to
 repeat are not automatically general preferences.
 
@@ -53,8 +53,8 @@ the task's completion report.
 Update an existing matching generated skill instead of producing duplicates.
 If a bundled or unrelated existing skill overlaps, record the scoped preference
 locally rather than silently rewriting the shared kit or global configuration.
-The `north-sources` workflow makes locally generated skills available to future
-North tasks by reading them directly; no global installation is required.
+North's shared instructions make locally generated skills available to future
+tasks by reading them directly; no global installation is required.
 
 When evidence conflicts, preserve the observations and narrow the scope if the
 contexts explain the difference. Otherwise leave the candidate unpromoted until

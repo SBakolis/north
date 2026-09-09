@@ -50,9 +50,6 @@ An unresolved answer is valid when the missing evidence is identified. Stop
 when further searching is unlikely to change the result within the task's scope;
 do not keep collecting sources merely to increase their number.
 
-For persistent notes, reuse the relevant project artifact. Honor the configured
-North output directory, otherwise use `<project-root>/north/research/`; use an
-established project location when required and leave a reference rather than a
-duplicate. Consult `north-sources` when available, but it is not required.
-The primary agent consolidates shared findings. In a read-only task, return the
-findings and proposed updates without creating or changing files.
+When saving findings, load `north-sources` for artifact conventions. Use the
+selected feature plan's research record when one is provided, otherwise its
+standalone research location. Apply North's shared artifact and ownership rules.

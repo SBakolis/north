@@ -55,9 +55,6 @@ The primary agent owns retention and integration decisions under the existing
 task and commit workflow. Creating a prototype does not by itself authorize a
 commit, publication, deployment, or expansion into production implementation.
 
-Reuse an existing experiment record when appropriate. Save supporting notes in
-the configured North output directory or `<project-root>/north/prototypes/` when
-writes are allowed. Keep runnable files in the location their tooling requires
-and link to them. `north-sources`, when available, supplies the storage convention;
-without it, resolve the project root from the established workspace or repository.
-Delegated agents return evidence for the primary to consolidate into shared notes.
+When saving experiment notes, load `north-sources` for the prototype location
+and apply the shared artifact rules. Keep runnable files where their tooling
+requires them and link to them from the notes.

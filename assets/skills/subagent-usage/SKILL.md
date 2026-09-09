@@ -1,6 +1,6 @@
 ---
 name: subagent-usage
-description: Coordinate substantial implementation work with native subagents, dependency-aware execution plans, and Git worktrees, then integrate verified changes into the original source branch. Use when a change benefits from bounded delegation or multiple implementation tasks need coordination.
+description: Delegate bounded tasks through native subagents, isolate checkouts, and integrate accepted changes into the original source branch. Use when work benefits from delegation or Git worktree coordination; north-execute owns the pipeline lifecycle.
 ---
 
 # Subagent usage
@@ -13,33 +13,22 @@ parallel activity. Use OpenCode's native Task tool and North's existing agents.
 The primary agent owns coordination, Git operations, and final integration;
 workers do not spawn further workers or manage branches themselves.
 
-## Respect the dependency DAG
+## Assign compatible work
 
-Use North's execution plan and status conventions. Reuse the authoritative plan
-and keep stable task IDs, explicit dependencies, write scopes, acceptance checks,
-and evidence. New plans use `north/plans/<feature>/index.md` and linked task
-files whose metadata and evidence are authoritative; the index mirrors them.
-Preserve existing single-file plans on resume. Only the primary agent updates
-the plan. Before dispatch, confirm
-that IDs are unique, dependencies exist, and the graph is acyclic. If a cycle
-appears, revise the task boundaries or extract a shared prerequisite.
+Load `north-sources` and use its
+[plan contract](../north-sources/references/plan-format.md) for graph validation,
+task evidence, and recovery. For multiple delegated tasks, create or reuse a plan
+under that contract; a separate planning phase is optional outside the pipeline.
+Follow the active coordinator's ordering: `north-execute` decides which pipeline
+layer may run.
+For standalone delegation, dispatch independent work after its prerequisites
+are accepted; this skill does not start a pipeline phase.
 
-A task is ready only when every prerequisite is reviewed, verified, and available
-in that task's checkout. A worker finishing does not by itself satisfy a dependency.
-Compute topological layers: roots first, then each task one layer after its
-latest prerequisite. Freeze the active layer's membership before dispatch.
-Dispatch independent ready tasks in that layer concurrently within the plan's
-limit (default two), while the primary agent advances other compatible work.
-Queue excess tasks and serialize conflicts. Finish, review, verify, and integrate
-every task in the layer before starting the next. A failed task holds that
-boundary; unrelated tasks within the active layer can continue. Recompute
-layers after a graph revision before dispatching more work.
-
-Include reads of unfinished contracts, generated outputs, lockfiles, and shared
-test resources when identifying dependencies. Worktree isolation prevents shared
-file writes but does not remove semantic dependencies or external resource
-conflicts. Coordinate scope changes before a worker expands its assignment.
-When a completed prerequisite changes, reassess downstream work and its evidence.
+Use concurrent native Task calls within the coordinator's limit (default 2).
+Serialize assignments with conflicting reads, writes, generated outputs,
+lockfiles, or test resources, including primary-agent edits. Worktrees isolate
+file writes but do not remove semantic or external-resource conflicts.
+Coordinate scope changes before a worker expands its assignment.
 
 Give each worker its task ID, goal, relevant context, prerequisite results, allowed
 write scope, acceptance checks, and exact checkout path and branch. Require it to
@@ -104,5 +93,5 @@ active, remove task-owned worktrees and branches only after confirming that they
 are clean and their work is merged. Preserve incomplete or unmerged work for recovery.
 
 Report the source branch, integration result, validation, and any remaining
-worktrees or blockers. On resume, reconcile the plan with actual sessions,
-worktrees, and commits before redispatching or attempting another merge.
+worktrees or blockers. Return these results to the active coordinator for progress
+updates and the next phase; use the plan contract when resuming integration.

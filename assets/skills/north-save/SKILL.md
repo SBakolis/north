@@ -10,11 +10,10 @@ it lives, why consequential decisions were made, and how it was checked.
 
 ## Establish what was implemented
 
-Resolve the working project and its configured North directory, defaulting to
-`<project-root>/north/`. Select a feature name or plan path from the request or
-the unambiguous current conversation. Without that context, use a sole completed
-plan; ask if several could match. Read its index and task files (or its existing
-single-file plan), research decisions, relevant code, and validation evidence.
+Load `north-sources` for artifact locations and its
+[plan contract](../north-sources/references/plan-format.md) for plan selection
+and evidence. Without a selector or conversation context, look for a sole
+completed plan. Read its task records, research decisions, code, and validation.
 If no plan or implementation evidence can be found, explain what is missing;
 do not infer completed work from an idea or fabricate a memory.
 
@@ -31,14 +30,13 @@ history intact; saving memory does not mark any task done or archive the plan.
 
 ## Save and link
 
-The primary agent creates or updates `north/memories/<feature>.md` and
-`north/memories/index.md`. Reuse the plan's feature slug; for a legacy plan derive
+Update the feature memory and memory index at the locations defined by
+`north-sources`. Reuse the plan's feature slug; for a legacy plan derive
 a safe lowercase hyphenated slug. Reserve `index.md` for navigation, choosing a
 distinct memory filename such as `index-feature.md` if the feature is `index`.
 Verify that an existing filename belongs to this feature; choose a distinct
 filename if it belongs to another feature. Preserve unrelated entries and
-previous valid context. Report path conflicts instead of replacing conflicting
-files or writing through symlinks. Correct superseded
+previous valid context and apply the shared artifact rules. Correct superseded
 claims explicitly; do not append contradictory memories for the same feature.
 
 Use this concise record shape, omitting empty or irrelevant sections:
@@ -69,13 +67,13 @@ Unfinished task IDs, known gaps, and conditions future changes must consider.
 The index has one row per feature linking its memory, with a short summary,
 search terms, complete/partial coverage, and verification date or revision.
 Use relative Markdown links to the plan and project files from the memory's
-location, honoring customized output paths. Verify saved links resolve, and
-add a reciprocal memory link to the plan index or its handoff section.
+location. Verify saved links resolve, and add a reciprocal memory link to the
+plan index or its handoff section.
 
-Keep memories focused on reusable implementation knowledge. Do not copy entire
-diffs, session transcripts, credentials, or unrelated personal details. These
-are project-local Markdown records, separate from learned preference skills.
-For a read-only request, return the proposed content without writing it.
+Keep memories focused on reusable implementation knowledge, with complete or
+partial coverage matching the verified task outcomes. Link evidence rather than
+copying entire diffs or session transcripts. These records are distinct from
+learned working preferences managed by `dry-skillify`.
 
 ## Finish
 

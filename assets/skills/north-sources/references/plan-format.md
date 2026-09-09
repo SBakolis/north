@@ -1,6 +1,6 @@
-# North directory plan format
+# North plan contract
 
-Plans live in the working project's resolved North directory:
+Use the artifact root resolved by `north-sources`. New feature plans use:
 
 ```text
 north/plans/account-settings/
@@ -107,36 +107,59 @@ external evidence, alternatives considered, selected approach, applicability,
 and unresolved gaps. It is context, not an executable task. Link to relevant
 research already stored elsewhere instead of duplicating it.
 
-## Status and execution
+## Graph validation
+
+Task IDs are stable and unique. Every dependency names an existing task, every
+local reference resolves, and the graph has no cycles or self-dependencies.
+Write scopes and acceptance checks must describe real project paths and
+observable outcomes. Include semantic dependencies such as reads of unfinished
+contracts, generated outputs, lockfiles, and shared test resources.
+
+Use a positive `Max parallel` value, defaulting to 2. Compute the index's layers
+from dependencies: roots are layer 1; each other task is one layer after its
+latest prerequisite. Recompute after graph revisions. The execution workflow
+decides when a layer may start; `north-execute` owns pipeline layer barriers.
+
+## Status and evidence
 
 | Task status | Meaning |
 | --- | --- |
 | pending | Not dispatched, possibly waiting for prerequisites. |
 | running | Dispatch recorded; execution is being launched or is active. |
-| needs-review | Work returned; acceptance and integration need primary review. |
-| done | Reviewed and verified; accepted changes are available to dependents. |
-| blocked | Failure, unresolved decision, or uncertain session requires resolution. |
+| needs-review | Work returned; acceptance and integration still need review. |
+| done | Primary reviewed the result and acceptance evidence; accepted changes are available to dependents. |
+| blocked | Failure, unresolved decision, or uncertain execution requires resolution. |
 
-Compute layers from task dependencies, not hand-written order or filename sort.
-Freeze the current layer's membership before launching it. Run independent tasks
-concurrently up to `Max parallel`, queuing excess or conflicting tasks. Wait
-for every task in that layer to be reviewed, verified, and integrated before
-starting the next layer. A blocker holds the layer boundary; unrelated tasks
-within the active layer can still finish. Repairs return blocked tasks to
-pending once the blocker is resolved; preserve previous failure evidence.
+Record dispatch before launch, adding the native session reference when available.
+Keep changed files, exact checks and results, missing evidence, review findings,
+and integration state in the task's execution section. A worker report or status
+label alone is not completion evidence. Synchronize index entries from task files;
+preserve previous outcomes and reasons for repairs in the history.
 
-On graph revisions, validate again and recompute layers before new dispatch.
-If a completed prerequisite changes, reassess downstream results, invalidate
-affected completion evidence, and record which work needs review or reexecution.
+If project instructions also require an external progress artifact such as
+OpenSpec tasks, record its location and synchronize it from verified outcomes.
 
-On resume, reconcile task files and the index with the checkout, checks, and
-native session/worktree state. A `running` label alone proves neither activity
-nor completion. Establish that the prior writer has stopped before retrying;
-otherwise mark the uncertainty blocked. Preserve existing user edits.
+## Select and resume a plan
+
+An explicit selector may be a feature name, plan directory, index path, or legacy
+single-file plan. Otherwise use an unambiguous plan from the conversation, or a
+sole plan matching the requested phase. Ask when several match; do not choose
+by modification time. If none exists, identify the missing plan.
+
+Before continuing, compare task records and the index with the checkout,
+validation evidence, and available native sessions, worktrees, and commits.
+Establish that a prior writer has stopped before retrying a `running` task.
+Unknown execution state is a blocker, not permission to launch a second writer.
+Review partial work, preserve user changes, and repair a stale index.
+
+Recheck completed results against the current implementation. If a prerequisite
+changes, invalidate affected downstream completion evidence and record which
+tasks need review or reexecution. Revalidate the graph after revisions. Keep
+plan paths and unfinished IDs in handoffs.
 
 ## Existing single-file plans
 
-An existing `north/plans/<feature>.md` may remain authoritative when resuming.
-Its task table owns metadata/status and task sections hold evidence. Apply the
-same dependency, verification, layer, and resume rules without rewriting history.
-Only create new directory plans for new features, or migrate when requested.
+An existing `north/plans/<feature>.md` remains authoritative when resuming.
+Its task table owns metadata/status and its detail sections hold evidence.
+Apply this contract without rewriting history or creating a competing plan.
+New features use directory plans; migrate existing plans only when requested.
