@@ -1,15 +1,23 @@
 # Architecture
 
-North consists of `install.sh`, shared instructions, a `/north` command, four Markdown subagent
+North consists of `install.sh`, shared instructions, Markdown commands, four subagent
 definitions, and task-specific skills. Installation links these assets into OpenCode's global
 configuration. OpenCode loads the instructions and executes the subagents with
 its native Task tool.
 
-Commands live in `assets/commands/*.md` and are always installed into OpenCode's
-global `commands/` directory. `/north` directs the primary build agent to create
-the current project's `north/` directory and offer OpenSpec initialization when
+Commands live in `assets/commands/*.md` and install into OpenCode's global
+`commands/` directory. `/north` is always installed and directs the primary build
+agent to create the current project's `north/` directory and offer OpenSpec initialization when
 the CLI is installed. The confirmation and setup run in the current conversation.
 See [OpenCode commands](https://opencode.ai/docs/commands/) for the command format.
+
+The **North pipeline** workflow toggle installs `/north-plan`, `/north-execute`,
+and `/north-save` with the five pipeline skills and their prerequisites. The
+commands guide planning, implementation, and saving implementation knowledge,
+then suggest the next command when their stage completes. If a required skill
+is absent, the command directs the user to enable **North pipeline** through the
+installer before continuing. Disabling the group removes its owned links while
+preserving project plans and memories.
 
 Skills live in `assets/skills/<name>/SKILL.md`. OpenCode discovers their names
 and descriptions and loads the full instructions through its native skill tool
@@ -23,6 +31,12 @@ agents load only installed methods relevant to the assignment. The planner uses
 them to propose decisions and acceptance checks, the worker to implement and
 validate scoped behavior, and the verifier to review changes and supplied evidence.
 The verifier's permissions still leave test execution to the primary agent.
+The pipeline group includes prerequisites during installation: `north-plan`
+requires `clarify-requirements`, `north-explore`, and `invoke-memory`;
+`north-explore` requires `research`; and `north-execute` requires `invoke-memory`
+and `subagent-usage`. These shared engineering skills remain ordinary selectable
+skills when the pipeline is off and are required when it is on. The five pipeline
+skills are controlled by the group instead of individual checklist rows.
 
 These methods reuse the authoritative project requirements, OpenSpec artifacts,
 and North plan rather than creating another task lifecycle. The primary agent
@@ -49,13 +63,46 @@ useful, waits for dependencies, reviews the diff, and runs acceptance checks.
 Workers return changes and evidence. The verifier provides a read-only review;
 the conflict resolver handles explicitly assigned conflicts.
 
-For multiple delegated tasks, the primary agent maintains a Markdown execution
-plan in the working project's `north/plans/` directory. Stable task IDs and
-dependencies describe a DAG; the primary agent selects ready tasks and dispatches
-independent work through OpenCode's native Task tool, with a default concurrency
-limit of two. Only the primary agent edits the plan. Worker results require review
-before completion unlocks dependent work. See [execution plans](plan-format.md)
-for the template, statuses, and resume procedure.
+`/north-plan <prompt>` uses the existing requirements clarification skill to
+resolve consequential questions, `invoke-memory` to consult prior implementation
+knowledge, and `north-explore` to research relevant repository patterns, similar
+implementations, best practices, and libraries. New execution plans use this
+structure under the working project's resolved North directory:
+
+```text
+north/plans/<feature-slug>/
+  index.md
+  research.md
+  tasks/
+    A-<task-slug>.md
+    B-<task-slug>.md
+```
+
+The index records the goal, context, acceptance criteria, and links to research
+and task files. Each task file owns its dependencies, status, scope, and evidence;
+the index keeps a synchronized overview of task statuses and dependency layers.
+Stable task IDs and links describe a directed acyclic graph (DAG). Only the
+primary agent edits the plan; subagents return proposed updates. Existing
+single-file plans can resume in place without being rewritten.
+
+`/north-execute <feature-slug-or-plan-path>` checks relevant memories, validates
+the DAG, and freezes its topological layers before dispatch. The primary agent
+launches independent tasks within the current layer through OpenCode's native
+Task tool, with a default concurrency limit of two. It reviews results and
+verifies the whole layer before starting the next. Tasks move through `pending`,
+`running`, `needs-review`, `done`, or `blocked`; a worker report alone cannot mark
+a task done. Changes to the graph require updated layers before further dispatch.
+See [execution plans](plan-format.md) for the templates, evidence requirements,
+and resume procedure.
+
+`/north-save <feature-slug-or-plan-path>` updates `north/memories/index.md` and
+`north/memories/<feature-slug>.md` with verified implemented facts, including
+references to the plan, code, and validation evidence. Proposed or unfinished
+work is not saved as implemented knowledge. `invoke-memory` reads relevant
+memories before implementation and checks their applicability to the current
+repository; stale memories are context, not instructions. Memory lookup is
+read-only and does nothing when no memories exist. All these paths honor the
+project's configured North directory.
 
 Subagents share the checkout unless isolation is arranged separately. Parallel
 writes must have disjoint scopes; overlapping changes run sequentially. North

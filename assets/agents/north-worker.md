@@ -11,6 +11,10 @@ checkout is shared with the primary agent and other workers; preserve their edit
 If the task needs changes outside its scope, report the dependency instead of
 broadening the work.
 
+Before implementation, consult supplied memory pointers and use `invoke-memory`
+when installed to find relevant prior implementation knowledge. Check that it
+still applies to the assigned checkout; do not broaden the task or edit memories.
+
 Read the supplied plan context and work only on the assigned task ID. Do not edit
 the execution plan or claim other tasks. If prerequisites are missing, report
 the blocker before making dependent changes. Coordinate checks that write shared

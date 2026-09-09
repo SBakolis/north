@@ -34,4 +34,7 @@ Scaffold North in the current working project. Perform this small setup directly
    delete any partially created files or retry with destructive options.
 
 Finish with the North directory's path and whether OpenSpec was added, already
-present, declined, unavailable, or failed.
+present, declined, unavailable, or failed. Suggest `/north-plan <feature prompt>`
+to begin planning the first feature when available. If that command is not
+installed, explain that enabling **North pipeline** in North's installer adds it.
+Do not run the next command automatically.

@@ -1,123 +1,82 @@
 # Execution plans
 
-North uses Markdown plans to coordinate native OpenCode subagents. The primary
-agent interprets dependencies and updates progress. There is no North executable
-or automatic scheduler; these rules are instructions, not runtime guarantees.
+North coordinates implementation through a Markdown dependency graph interpreted
+by the primary agent. There is no North runtime scheduler. `/north-plan <prompt>`
+uses requirement clarification, saved implementation memory, and exploration to
+save a plan under the working project's North directory. `/north-execute` then
+implements it, and `/north-save` preserves verified implementation knowledge.
 
-For work with multiple delegated tasks, save one plan under the working project's
-`north/plans/<change>.md`, honoring a configured North output directory. Reuse
-the relevant plan when continuing work. If project conventions require another
-location, keep the authoritative plan there and save a reference under `north/`.
-For example, an existing OpenSpec task artifact can carry the execution details
-when its format permits. Small changes do not require a plan. A read-only planning
-request returns the proposed content without saving it or starting implementation.
+## Files and ownership
 
-## Template
+New plans use this layout, honoring an explicitly configured North directory:
 
-Replace example paths and checks with real project details. The table is the
-authoritative task status list; the detail sections hold context and evidence.
-
-```markdown
-# Plan: Add account settings
-
-Goal: Users can view and update their display name.
-Context: <requirements and relevant repository paths>
-Max parallel: 2
-
-| ID | Task | Depends on | Agent | Write scope | Status |
-| --- | --- | --- | --- | --- | --- |
-| A | Define settings contract | — | north-worker | src/contracts/settings.ts | pending |
-| B | Implement endpoint | A | north-worker | src/server/settings/, tests/server/settings/ | pending |
-| C | Implement settings form | A | north-worker | src/ui/settings/, tests/ui/settings/ | pending |
-| D | Review integration | B, C | north-verifier | none (read-only) | pending |
-
-## A: Define settings contract
-Acceptance: Contract defines display-name input, result, and validation errors;
-the primary agent runs the project's type check successfully.
-Dispatch/session: Not dispatched.
-Changed files: None yet.
-Evidence: None yet.
-Blockers: None known.
-
-## B: Implement endpoint
-Acceptance: Endpoint implements A; focused server tests cover persistence and
-invalid input. Record the actual command and result.
-Dispatch/session: Not dispatched.
-Changed files: None yet.
-Evidence: None yet.
-Blockers: None known.
-
-## C: Implement settings form
-Acceptance: Form uses A; focused UI tests cover loading, saving, and errors.
-Record the actual command and result.
-Dispatch/session: Not dispatched.
-Changed files: None yet.
-Evidence: None yet.
-Blockers: None known.
-
-## D: Review integration
-Acceptance: Primary runs the relevant integration checks on the stable combined
-tree; verifier reviews the diff and supplied results against the goal. Findings
-are resolved and missing evidence is supplied before the primary marks D done.
-Dispatch/session: Not dispatched.
-Changed files: None (review only).
-Evidence: None yet.
-Blockers: None known.
-
-## Decisions and handoff
-Record plan revisions, reasons for retries, remaining work, and any uncertainty
-about an interrupted execution. Include the plan path in session handoffs.
+```text
+north/plans/<feature>/
+  index.md
+  research.md
+  tasks/
+    T01-contract.md
+    T02-endpoint.md
+    T03-form.md
+    T04-integration.md
 ```
 
-## Coordination
+The [bundled plan format](../assets/skills/north-plan/references/plan-format.md)
+contains the maintained index/task templates, statuses, and resume procedure.
+It is shipped with `north-plan` so installed agents can read it.
 
-The planner returns proposed plan content and remains read-only. The primary
-agent is the sole plan editor, including updates requested by workers or reviewers.
-Give each worker its task ID, goal, context, scope, prerequisites, and acceptance
-checks. Keep task IDs stable as the plan evolves.
+Each task file owns its ID, status, dependencies, agent, write scope, acceptance
+checks, and evidence. The index links every task and mirrors statuses,
+dependencies, and computed layers. Task files link back to the index and their
+prerequisites. Research records sources, alternatives, decisions, and evidence
+gaps, with a link back to the index. Only the primary agent edits shared records;
+the planner, workers, and verifier return proposed updates and evidence.
 
-Before dispatch, check IDs are unique, every dependency exists, the graph has no
-cycles, and parallel scopes are compatible. A task is ready only when it is
-pending and all its dependencies are done. Launch ready independent tasks using
-concurrent native Task calls when available, within the plan's concurrency limit;
-otherwise run sequentially. In the example, B and C can run together after A is
-done, and D waits for both. Independent work may continue when another task blocks.
+Use stable task IDs and unique feature names. Preserve relevant OpenSpec or other
+authoritative project requirements and link to them. Existing single-file plans
+at `north/plans/<feature>.md` can resume without migration or lost history. A
+read-only planning request returns proposed contents without creating files.
+Ordinary small edits do not require the pipeline.
 
-Assume a shared checkout. Disjoint write paths are necessary, but also check
-whether a task reads files another task is changing or uses shared test resources.
-Account for generated files, lockfiles, and formatter output. Serialize conflicts,
-including primary-agent edits. The final review and integration checks need a
-stable combined tree. Scope changes must be coordinated before work expands.
+## Dependency layers
 
-## Status and evidence
+Validate unique IDs, existing dependencies, acyclicity, and compatible scopes
+before dispatch. Roots form layer 1; each other task belongs one layer after
+its latest prerequisite. Freeze the active layer before starting it. With
+`T01 → {T02, T03} → T04`, finish and verify T01, run T02 and T03 concurrently,
+then finish and verify both before starting T04.
 
-| Status | Meaning |
-| --- | --- |
-| pending | Not dispatched; may be waiting for dependencies. |
-| running | Dispatch recorded; execution has started or is being launched. |
-| needs-review | Worker returned; diff and acceptance evidence need review. |
-| done | Primary reviewed the result and confirmed acceptance checks. |
-| blocked | Failure, missing input, or uncertain execution needs resolution. |
+Dispatch only pending tasks whose prerequisites are done and present in their
+checkout. Use concurrent native Task calls within the plan's limit (default 2),
+queuing excess or conflicting work. Worktrees can isolate files, but shared
+contracts, generated outputs, lockfiles, and external resources still matter.
+Serialize conflicting work, plan updates, and integration. Without concurrent
+tools, follow the same dependency order serially and report that limitation.
 
-Record dispatch before launch, adding the native session reference when available.
-Worker reports alone do not establish completion. Record changed files, actual
-checks and results, missing evidence, and review findings. The verifier reviews
-supplied evidence; its permissions leave execution of missing checks to the primary.
+Tasks move from `pending` to `running` to `needs-review`, then to `done` only
+after primary review, acceptance verification, and integration. A failure or
+uncertain session becomes `blocked` with diagnostics and a next action. A
+blocker holds the layer boundary while independent work in the active layer
+can finish. Resolve it before returning the task to `pending`; preserve failure
+evidence. Do not repeatedly retry the same unresolved failure.
 
-A failed task becomes blocked with diagnostics and a next action. Once a scoped
-repair is ready, move it back to pending for dispatch. Preserve prior evidence and
-do not repeatedly retry an unchanged failure. Changes to completed prerequisites
-require reassessing downstream work and invalidating affected completion evidence.
+Record actual dispatch/session references, changed files, validation commands
+and results, review findings, and integration state. The verifier is read-only;
+the primary executes missing checks. Run final integration checks on the stable
+combined tree before reporting completion. Revalidate and recompute layers after
+graph changes; changed prerequisites can invalidate downstream completion.
 
-## Resume
+## Resume and memory
 
-Read the existing plan and compare its entries with the checkout, evidence, and
-available native session state before dispatching. A running entry may represent
-active work, an interrupted worker, or a launch that never completed. Establish
-that the previous execution has stopped before retrying; if that cannot be
-determined, record a blocker instead of creating a second writer.
+Reconcile plan files with current code, validation evidence, native sessions,
+and worktrees before resuming. A running status alone does not prove that a
+worker is active or finished. Establish that the prior writer has stopped before
+retrying; otherwise record the uncertainty as blocked. Review partial changes
+and preserve user edits. Retain plan paths and unfinished IDs in handoffs.
 
-Review partial changes before continuing. Confirm completed results still apply
-to the current tree and revise stale evidence or dependencies. Retain the plan
-path and unfinished IDs in handoffs and compaction summaries. This supports
-agent-led recovery; the file itself does not resume sessions or enforce execution.
+After implementation, `/north-save <feature>` writes
+`north/memories/<feature>.md`, updates `north/memories/index.md`, and links the
+memory and plan to each other. It records verified behavior, decisions, code
+references, validation, and limitations. Partial work stays explicitly partial;
+saving memory does not complete tasks or remove plans. `invoke-memory` reads
+relevant records before later implementation and checks their applicability.

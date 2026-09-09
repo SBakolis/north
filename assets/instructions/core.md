@@ -9,6 +9,12 @@ Save supporting output there when writing is within scope; read-only requests
 return proposed updates without saving them. Keep implementation files and
 authoritative project artifacts in their required locations.
 
+Before implementation, load `invoke-memory` when installed to retrieve relevant
+verified implementation knowledge from `north/memories/`. Otherwise consult
+relevant memory files directly, using their index when present. Missing memories
+are normal; do not create them during lookup. Check saved claims against current
+code and instructions before relying on them.
+
 When the user expresses or corrects a reusable working preference, use
 `dry-skillify` if installed to record evidence and promote supported patterns.
 Without it, follow the current preference without generating learned skills.
@@ -23,6 +29,24 @@ Scale research, clarification, testing, and review to the task's uncertainty
 and consequences.
 Skills do not expand an agent's permissions or assigned scope. Read-only agents
 return proposed artifact updates for the primary agent to consolidate.
+
+The explicit implementation pipeline is `/north-plan <prompt>`, then
+`/north-execute <feature>`, then `/north-save <feature>`. Load the corresponding
+skill for each command. Planning invokes `invoke-memory`, `clarify-requirements`,
+and `north-explore` (which uses `research`) and saves a plan without implementing
+it. Execution invokes `invoke-memory` and `subagent-usage` and implements the plan
+one dependency layer at a time. Saving records verified implementation knowledge
+under `north/memories/` for later lookup. End each phase by suggesting the next
+command; after saving, suggest `/north-plan <next feature prompt>`. Do not start
+the next phase automatically. If blocked, explain the resolution/resume step
+before advancing. Ordinary requests can still proceed without these commands.
+
+`/north` is always installed. The **North pipeline** workflow toggle installs
+the three pipeline commands, their five skills (including `invoke-memory`),
+and required dependencies together. If a pipeline command or required skill
+is absent, explain how to enable **North pipeline** in North's installer before
+continuing that phase. Do not simulate unavailable skills or silently skip a
+required phase. Disabling the group preserves saved project plans and memories.
 
 Use OpenCode's native subagents through the Task tool to delegate bounded work.
 Handle small changes directly. For larger work, coordinate from the primary
@@ -39,24 +63,33 @@ and expected evidence. Use OpenCode's built-in exploration subagent for focused
 repository research when useful. Do not launch separate OpenCode processes to
 simulate delegation.
 
-For work with multiple delegated tasks, save one Markdown execution plan at
-`north/plans/<change>.md` under the working project, honoring the resolved North
-output directory. Reuse an existing relevant plan. Follow a required project
-planning location instead when applicable, leaving a reference in North's output
-directory rather than a competing plan. For read-only requests, return a proposed
-plan without saving it or starting implementation.
+For new work with multiple delegated tasks, save a directory plan at
+`north/plans/<feature>/index.md` with linked `research.md` and
+`tasks/<ID>-<slug>.md` files, honoring the resolved North output directory.
+Use `north-plan` when installed for the format and planning workflow. Reuse an
+existing relevant plan, including legacy single-file plans. Keep required
+project requirements authoritative and link to them rather than duplicating
+them. For read-only requests, return a proposed plan without saving it or
+starting implementation.
 
 Include the goal, context paths, a concurrency limit (default 2), and tasks with
 stable IDs, dependencies, agent, repository-relative write scope, acceptance
-checks, and status. Record each task's dispatch/session reference when available,
-changed files, validation evidence, and blockers. Only the primary agent edits
-the execution plan; subagents return proposed updates. The planner stays read-only.
+checks, and status. For directory plans, task frontmatter owns `id`, `status`,
+`depends_on` (IDs), `agent`, and `write_scope`; the index links tasks and mirrors statuses,
+dependencies, and computed layers. Record each task's dispatch/session reference
+when available, changed files, validation evidence, and blockers. Existing
+single-file plans retain their task table and evidence sections. Only the primary
+agent edits the execution plan; subagents return proposed updates. The planner stays read-only.
 
 Before dispatch, check for duplicate IDs, missing dependencies, cycles, and
 overlapping scopes. Dispatch only pending tasks whose dependencies are all done,
 up to the plan's concurrency limit, using concurrent native Task calls for
-independent work when available. Otherwise execute sequentially. Subagents should
-report blockers to the primary agent instead of spawning more workers.
+independent work when available. Compute layers with roots first and each other
+task one layer after its latest prerequisite. Finish, review, verify, and
+integrate the entire active layer before dispatching the next. Queue excess or
+conflicting tasks within that layer. When concurrency is unavailable, execute
+sequentially. Subagents should report blockers to the primary agent instead of
+spawning more workers.
 
 Native subagent sessions do not imply separate Git worktrees: assume a shared
 checkout. Parallel tasks must have disjoint write scopes and must not rely on
@@ -69,9 +102,9 @@ before launching work and add the native session reference when returned. A
 worker result moves a task to needs-review; mark it done only after reviewing
 the diff and checking acceptance evidence. Record failures and required repairs
 as blocked, then return the task to pending once a scoped retry is ready. Leave
-dependents waiting; independent tasks may continue. Do not repeatedly retry an
-unchanged failure. Record revised dependencies or scopes before redispatch and
-revisit affected downstream results when a previously completed task changes.
+dependents waiting; independent tasks in the active layer may continue. Do not
+repeatedly retry an unchanged failure. Record revised dependencies or scopes
+before redispatch and revisit downstream results when a completed task changes.
 
 On resume, read the plan and reconcile it with the checkout, saved evidence, and
 available native session state. Do not infer completion from a status label or

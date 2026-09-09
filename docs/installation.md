@@ -7,26 +7,51 @@ The POSIX shell script builds and launches a small Ratatui installer. The first
 build needs internet access to download the locked Rust dependencies; subsequent
 runs reuse the build. No North daemon or OpenCode plugin is installed.
 
-## Choose skills
+## Choose options
 
-On first installation, all skill options start checked. Use Up/Down (or j/k)
-to move, Space to enable or disable a skill, `a` to select all, and `n` to select
-none. Press Enter to apply or q/Esc to leave without changing your installation.
-Shared instructions, the `/north` command, and the four North agents are always included.
-The checklist scrolls with the selection when the skills exceed the terminal height.
-See the [skill catalog](../README.md#skills) for each method's purpose. Skills are
-independent options; enable the ones that fit your work.
+The installer separates its options into four categories, in this order:
+
+| Category | Options |
+| --- | --- |
+| Workflow | Auto commit, North pipeline |
+| Skills | Individually selectable engineering and project skills |
+| OpenSpec | OpenSpec CLI |
+| Installation | Merge installations |
+
+Use Up/Down (or j/k) to move and Space to toggle an option. `a` and `n` select
+or clear only the regular **Skills** category, preserving the **Workflow**,
+**OpenSpec**, and **Installation** choices. Press Enter to apply or q/Esc to leave
+unchanged.
+The checklist scrolls with the selection. On first installation, regular skills,
+**Auto commit**, and **North pipeline** start checked; **OpenSpec** and
+**Installation** options start unchecked. Shared instructions, `/north`, and the four North agents are always
+included. See the [skill catalog](../README.md#skills) for each method's purpose.
+
+**North pipeline** installs `/north-plan`, `/north-execute`, and `/north-save`
+together with `north-plan`, `north-explore`, `north-execute`, `north-save`, and
+`invoke-memory`. These five skills do not appear as individual checklist rows.
+The group also requires `clarify-requirements`, `research`, and `subagent-usage`;
+the checklist marks automatically included skills as required. These shared
+skills remain individually selectable when the pipeline is off.
+
+Disabling **North pipeline** removes its owned command and skill links. Project
+plans and memories remain intact. Reruns preserve the group setting. When
+upgrading an older installation, the group starts enabled if any owned pipeline
+skill is installed, otherwise disabled.
+Shared skills already checked in the Skills category stay selected when you
+turn the pipeline off; uncheck them separately if they are no longer needed.
 
 **Auto commit** is a single checkbox, checked on first installation. When checked,
 the installer links `auto-commit`, which commits completed, validated work without
 an extra confirmation. When unchecked, it links `commit`, which prepares the commit
 and waits for your go-ahead. Both use `feat:`, `fix:`, or `chore:` messages. Exactly
-one mode is linked, including when `n` clears all options. Reruns preserve the mode;
-upgrading an older installation starts with Auto commit unchecked and adds `commit`
-when you apply. The mode affects local commits, not pushing to a remote.
+one mode is linked. The `a` and `n` shortcuts leave this choice unchanged. Reruns
+preserve the mode; installations from before commit modes were introduced start
+with Auto commit unchecked and add `commit` when you apply. The mode affects
+local commits, not pushing to a remote.
 
 The optional **OpenSpec CLI** checkbox starts unchecked. Select it with Space
-to install OpenSpec if it is missing. The `a` and `n` shortcuts affect skills only.
+to install OpenSpec if it is missing.
 On apply, the installer checks `openspec --version` and skips installation if
 it succeeds. If the command is missing, it checks for Node.js 20.19.0 or newer,
 runs `npm install -g @fission-ai/openspec@latest`, and verifies the CLI afterward,
@@ -48,6 +73,9 @@ The installer creates symlinks under
 | --- | --- |
 | `AGENTS.md` | `assets/instructions/core.md` |
 | `commands/north.md` | `assets/commands/north.md` |
+| `commands/north-plan.md` (North pipeline enabled) | `assets/commands/north-plan.md` |
+| `commands/north-execute.md` (North pipeline enabled) | `assets/commands/north-execute.md` |
+| `commands/north-save.md` (North pipeline enabled) | `assets/commands/north-save.md` |
 | `agents/north-planner.md` | `assets/agents/north-planner.md` |
 | `agents/north-worker.md` | `assets/agents/north-worker.md` |
 | `agents/north-verifier.md` | `assets/agents/north-verifier.md` |
@@ -60,8 +88,8 @@ With **Merge installations** enabled, `AGENTS.md` stays in place; North's shared
 instructions are loaded through the configuration's `instructions` array instead.
 
 Each skill directory contains a `SKILL.md`. The installer discovers bundled
-skills automatically and links each enabled directory separately, treating the
-two commit skills as mutually exclusive modes of one option. Unrelated
+skills automatically and links each enabled directory separately. Workflow
+options group the pipeline skills and select one of the two commit modes. Unrelated
 skills remain intact. Keep the checkout because the links point directly into it.
 Start a new OpenCode session to load the installed instructions and skills.
 
@@ -74,8 +102,32 @@ OpenSpec with OpenCode support. Accepting runs `openspec init --tools opencode`
 from the project root; declining leaves only the North directory. A missing CLI
 is skipped, and an existing OpenSpec directory is left untouched.
 
-Rerun the installer after updating North to register the command in an existing
-installation. The command is included even when all optional skills are disabled.
+Rerun the installer after updating North to register the commands in an existing
+installation. `/north` is always included; the three pipeline commands require
+**North pipeline** to be enabled.
+
+## Use the implementation pipeline
+
+Enable **North pipeline** in **Workflow**, or select it from the command line:
+
+```sh
+./install.sh --skills north-pipeline
+```
+
+In the working project's OpenCode session, run `/north-plan <your feature prompt>`.
+The agent asks relevant requirements questions, checks existing memories, and
+researches similar implementations and useful libraries. It creates linked
+Markdown files under `north/plans/<feature-slug>/` and suggests
+`/north-execute <feature-slug>`. Execution works through independent tasks in
+dependency layers, verifies each layer, and suggests `/north-save <feature-slug>`
+when implementation is complete. Execute and save can also take a plan path.
+
+Saving records verified implementation facts in `north/memories/`, then suggests
+`/north-plan <next feature>`. Future implementation retrieves relevant memories
+through `invoke-memory`; a project without memories needs no initialization.
+Plans and memories honor a configured North directory. See the
+[plan format](plan-format.md) for task files, statuses, and resuming an existing
+plan, including plans created with the earlier single-file format.
 
 ## Existing instructions and conflicts
 
@@ -120,9 +172,9 @@ uninstall and is never overwritten on reruns. If no original `AGENTS.md` exists,
 no backup is needed.
 
 All link destinations are checked before modifying instructions or skills.
-The installer refuses conflicting command files, agent files, and enabled skill destinations,
-including dangling links. Disable a conflicting skill to leave it alone, or
-move the conflicting file aside yourself. An existing untracked
+The installer refuses conflicts at enabled command, agent, and skill destinations,
+including dangling links. Disable the relevant skill or workflow option to leave
+it alone, or move the conflicting file aside yourself. An existing untracked
 `AGENTS-backup.md` also blocks installation so it cannot be overwritten.
 Symlinks in place of the OpenCode, commands, agents, or skills directory are refused.
 An untracked or user-replaced commit skill also blocks switching to the opposite
@@ -138,18 +190,19 @@ a stale `.north-install.lock` directory only when no installer is running.
 
 ## Change skills, update, and uninstall
 
-Run `./install.sh` again to open the same checklist with currently enabled skills
-checked. Toggle skills and press Enter to link or unlink them. Updating this
-checkout changes the contents of linked assets immediately. Newly added skills
-start unchecked on an existing installation; rerun the installer to enable them.
+Run `./install.sh` again to open the checklist with the saved workflow and skill
+choices. Toggle options and press Enter to link or unlink them. Updating this
+checkout changes the contents of linked assets immediately. Newly added regular
+skills start unchecked on an existing installation unless required by the enabled
+pipeline; rerun the installer to enable them.
 If the checkout moves, run its `install.sh` from the new location to update links
 using the saved installation state.
 
 Press `u` in the installed menu, then `y`, to uninstall. North removes its matching
 instruction, command, agent, and skill links, restores `AGENTS-backup.md` to `AGENTS.md`
 when present, and removes its installation state. With no original instructions,
-`AGENTS.md` is simply removed. The checkout, project plans, unrelated skills,
-user replacements for agent/skill links, and other OpenCode configuration remain.
+`AGENTS.md` is simply removed. The checkout, project plans and memories, unrelated
+skills, user replacements for agent/skill links, and other OpenCode configuration remain.
 You can delete the checkout yourself afterward.
 
 If you replaced North's `AGENTS.md` link with your own file, move that file aside
@@ -169,14 +222,16 @@ An interactive terminal is required by default. Scripts and CI can explicitly
 select an action using the same installation logic:
 
 ```sh
-./install.sh --all                         # Enable all options, including Auto commit
+./install.sh --all                         # All skills, Auto commit, and North pipeline
 ./install.sh --all --openspec              # Also install OpenSpec if missing
 ./install.sh --openspec                    # Keep skill selection; ensure OpenSpec
 ./install.sh --merge                       # Keep skills; merge existing OpenCode config
 ./install.sh --all --merge --openspec       # Merge config and also ensure OpenSpec
 ./install.sh --skills explain-code,unity-ui # These skills plus confirmation-based commit
 ./install.sh --skills explain-code,auto-commit # Explain code with Auto commit enabled
-./install.sh --skills ''                   # Only commit; keep shared instructions/agents
+./install.sh --skills north-pipeline       # Pipeline and confirmation-based commit
+./install.sh --skills north-pipeline,auto-commit # Pipeline with Auto commit
+./install.sh --skills ''                   # Only commit; keep /north, instructions, agents
 ./install.sh --uninstall                   # Remove North and restore the backup
 ./install.sh --help
 ```
@@ -187,8 +242,12 @@ but not `--uninstall`. Either used alone preserves the current skill selection
 updates; uncheck it in the TUI to return to the default installation mode.
 For `--skills`, including `auto-commit` checks Auto commit; omitting it selects
 `commit`. Explicit `commit` is also accepted; requesting both modes is an error.
-`--all` by itself only selects bundled skills; it does not enable merge mode on
-first installation or install OpenSpec.
+`--skills` is an explicit selection: include `north-pipeline` to enable the entire
+group and its prerequisites. The older individual names `north-plan`,
+`north-explore`, `north-execute`, `north-save`, and `invoke-memory` are accepted
+as aliases that enable the full group. `--all` enables all regular skills,
+Auto commit, and North pipeline; it does not enable merge mode on first
+installation or install OpenSpec.
 
 Without merge mode, the installer leaves OpenCode JSON configuration untouched. OpenCode documents
 [agent discovery](https://opencode.ai/docs/agents/),

@@ -17,15 +17,23 @@ workers do not spawn further workers or manage branches themselves.
 
 Use North's execution plan and status conventions. Reuse the authoritative plan
 and keep stable task IDs, explicit dependencies, write scopes, acceptance checks,
-and evidence. Only the primary agent updates the plan. Before dispatch, confirm
+and evidence. New plans use `north/plans/<feature>/index.md` and linked task
+files whose metadata and evidence are authoritative; the index mirrors them.
+Preserve existing single-file plans on resume. Only the primary agent updates
+the plan. Before dispatch, confirm
 that IDs are unique, dependencies exist, and the graph is acyclic. If a cycle
 appears, revise the task boundaries or extract a shared prerequisite.
 
 A task is ready only when every prerequisite is reviewed, verified, and available
 in that task's checkout. A worker finishing does not by itself satisfy a dependency.
-Dispatch independent ready tasks concurrently within the plan's limit (default
-two), while the primary agent advances other unblocked work. Keep dependents
-waiting when a prerequisite fails; continue unrelated ready tasks.
+Compute topological layers: roots first, then each task one layer after its
+latest prerequisite. Freeze the active layer's membership before dispatch.
+Dispatch independent ready tasks in that layer concurrently within the plan's
+limit (default two), while the primary agent advances other compatible work.
+Queue excess tasks and serialize conflicts. Finish, review, verify, and integrate
+every task in the layer before starting the next. A failed task holds that
+boundary; unrelated tasks within the active layer can continue. Recompute
+layers after a graph revision before dispatching more work.
 
 Include reads of unfinished contracts, generated outputs, lockfiles, and shared
 test resources when identifying dependencies. Worktree isolation prevents shared

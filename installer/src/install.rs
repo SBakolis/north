@@ -13,6 +13,28 @@ const STATE: &str = ".north-installation.json";
 const BACKUP: &str = "AGENTS-backup.md";
 const COMMIT: &str = "commit";
 pub const AUTO_COMMIT: &str = "auto-commit";
+pub const NORTH_PIPELINE: &str = "north-pipeline";
+pub const PIPELINE_SKILLS: &[&str] = &[
+    "north-plan",
+    "north-explore",
+    "north-execute",
+    "north-save",
+    "invoke-memory",
+];
+const PIPELINE_COMMANDS: &[&str] = &["north-plan.md", "north-execute.md", "north-save.md"];
+
+pub fn pipeline_enabled(selected: &BTreeSet<String>) -> bool {
+    selected.contains(NORTH_PIPELINE) || PIPELINE_SKILLS.iter().any(|name| selected.contains(*name))
+}
+
+fn skill_dependencies(name: &str) -> &'static [&'static str] {
+    match name {
+        "north-plan" => &["clarify-requirements", "north-explore", "invoke-memory"],
+        "north-explore" => &["research"],
+        "north-execute" => &["invoke-memory", "subagent-usage"],
+        _ => &[],
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct State {
@@ -141,12 +163,21 @@ impl Installation {
                         .file_name()
                         .into_string()
                         .map_err(|_| anyhow::anyhow!("Asset names must be UTF-8"))?;
-                    if folder == "skills" && name != COMMIT {
+                    if folder == "skills"
+                        && name != COMMIT
+                        && !PIPELINE_SKILLS.contains(&name.as_str())
+                    {
                         skills.push(name.clone());
                     }
                     available.insert(Path::new(folder).join(name), path);
                 }
             }
+        }
+        if PIPELINE_SKILLS
+            .iter()
+            .any(|name| available.contains_key(&Path::new("skills").join(name)))
+        {
+            skills.push(NORTH_PIPELINE.into());
         }
         skills.sort();
         ensure!(
@@ -196,7 +227,8 @@ impl Installation {
             return self.skill_names();
         }
         let owned = self.owned_links();
-        self.skills
+        let mut selected: BTreeSet<_> = self
+            .skills
             .iter()
             .filter(|name| {
                 let relative = Path::new("skills").join(name);
@@ -205,7 +237,16 @@ impl Installation {
                     .is_some_and(|source| matches_link(&self.config.join(relative), source))
             })
             .cloned()
-            .collect()
+            .collect();
+        if PIPELINE_SKILLS.iter().any(|name| {
+            let relative = Path::new("skills").join(name);
+            owned
+                .get(&relative)
+                .is_some_and(|source| matches_link(&self.config.join(relative), source))
+        }) {
+            selected.insert(NORTH_PIPELINE.into());
+        }
+        selected
     }
 
     fn lock(&self) -> Result<Lock> {
@@ -224,9 +265,12 @@ impl Installation {
         Ok(lock)
     }
 
-    // The checklist stores auto-commit as one option; commit is its unchecked fallback.
+    // Checkbox options expand into concrete skill assets before any mutation.
     pub fn resolved_skills(&self, selected: &BTreeSet<String>) -> Result<BTreeSet<String>> {
         let mut known = self.skill_names();
+        // Accept previous CLI skill names as aliases for the complete pipeline.
+        known.insert(NORTH_PIPELINE.into());
+        known.extend(PIPELINE_SKILLS.iter().map(|name| (*name).to_owned()));
         if self.available.contains_key(Path::new("skills/commit")) {
             known.insert(COMMIT.into());
         }
@@ -244,8 +288,38 @@ impl Installation {
             "Choose commit or auto-commit, not both"
         );
         let mut resolved = selected.clone();
+        resolved.remove(NORTH_PIPELINE);
+        if pipeline_enabled(selected) {
+            for &name in PIPELINE_SKILLS {
+                ensure!(
+                    self.available.contains_key(&Path::new("skills").join(name)),
+                    "North pipeline requires missing bundled skill {name}; restore the North checkout before installing"
+                );
+                resolved.insert(name.into());
+            }
+            for &name in PIPELINE_COMMANDS {
+                ensure!(
+                    self.available
+                        .contains_key(&Path::new("commands").join(name)),
+                    "North pipeline requires missing bundled command {name}; restore the North checkout before installing"
+                );
+            }
+        }
         if known.contains(COMMIT) && !selected.contains(AUTO_COMMIT) {
             resolved.insert(COMMIT.into());
+        }
+        let mut pending: Vec<_> = resolved.iter().cloned().collect();
+        while let Some(name) = pending.pop() {
+            for &dependency in skill_dependencies(&name) {
+                ensure!(
+                    self.available
+                        .contains_key(&Path::new("skills").join(dependency)),
+                    "Skill {name} requires missing bundled skill {dependency}; restore the North checkout before installing"
+                );
+                if resolved.insert(dependency.into()) {
+                    pending.push(dependency.into());
+                }
+            }
         }
         Ok(resolved)
     }
@@ -256,6 +330,7 @@ impl Installation {
     }
 
     pub fn apply_with_merge(&self, selected: &BTreeSet<String>, merge: bool) -> Result<()> {
+        let pipeline = pipeline_enabled(selected);
         let selected = self.resolved_skills(selected)?;
         let _lock = self.lock()?;
         let owned = self.owned_links();
@@ -281,6 +356,10 @@ impl Installation {
             .iter()
             .filter(|(relative, _)| {
                 (!merge || relative.as_path() != Path::new("AGENTS.md"))
+                    && (pipeline
+                        || !relative.starts_with("commands")
+                        || !PIPELINE_COMMANDS
+                            .contains(&relative.file_name().unwrap().to_str().unwrap()))
                     && (!relative.starts_with("skills")
                         || selected.contains(relative.file_name().unwrap().to_str().unwrap()))
             })
@@ -657,6 +736,293 @@ mod tests {
             fs::create_dir_all(&path).unwrap();
             fs::write(path.join("SKILL.md"), "skill").unwrap();
         }
+    }
+
+    fn add_pipeline(repo: &Path) {
+        for name in [
+            "north-plan",
+            "north-explore",
+            "north-execute",
+            "north-save",
+            "invoke-memory",
+            "clarify-requirements",
+            "research",
+            "subagent-usage",
+        ] {
+            let path = repo.join("assets/skills").join(name);
+            fs::create_dir_all(&path).unwrap();
+            fs::write(path.join("SKILL.md"), "skill").unwrap();
+        }
+        for name in ["north-plan", "north-execute", "north-save"] {
+            fs::write(
+                repo.join("assets/commands").join(format!("{name}.md")),
+                "command",
+            )
+            .unwrap();
+        }
+    }
+
+    #[test]
+    fn pipeline_group_and_legacy_names_resolve_complete_pipeline() {
+        let (_temp, repo, config) = fixture();
+        add_pipeline(&repo);
+        add_commit_modes(&repo);
+        let installation = Installation::load(&repo, &config).unwrap();
+        assert!(installation.skill_names().contains(NORTH_PIPELINE));
+        assert!(installation.selected_skills().contains(NORTH_PIPELINE));
+        assert!(
+            PIPELINE_SKILLS
+                .iter()
+                .all(|name| !installation.skill_names().contains(*name))
+        );
+        let expected: BTreeSet<String> = [
+            COMMIT,
+            "north-plan",
+            "north-explore",
+            "north-execute",
+            "north-save",
+            "invoke-memory",
+            "clarify-requirements",
+            "research",
+            "subagent-usage",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
+        for &name in [NORTH_PIPELINE].iter().chain(PIPELINE_SKILLS) {
+            let selected = BTreeSet::from([name.into()]);
+            assert!(pipeline_enabled(&selected));
+            assert_eq!(installation.resolved_skills(&selected).unwrap(), expected);
+        }
+        let mut automatic = expected.clone();
+        automatic.remove(COMMIT);
+        automatic.insert(AUTO_COMMIT.into());
+        assert_eq!(
+            installation
+                .resolved_skills(&BTreeSet::from([
+                    NORTH_PIPELINE.into(),
+                    "north-plan".into(),
+                    AUTO_COMMIT.into(),
+                ]))
+                .unwrap(),
+            automatic
+        );
+        assert_eq!(
+            installation
+                .resolved_skills(&BTreeSet::from(["research".into()]))
+                .unwrap(),
+            BTreeSet::from([COMMIT.into(), "research".into()])
+        );
+    }
+
+    #[test]
+    fn pipeline_toggle_controls_its_skills_and_commands_together() {
+        let (_temp, repo, config) = fixture();
+        add_pipeline(&repo);
+        let selected = BTreeSet::from([NORTH_PIPELINE.into()]);
+        let initial = Installation::load(&repo, &config).unwrap();
+        let resolved = initial.resolved_skills(&selected).unwrap();
+        initial.apply(&selected).unwrap();
+        for name in &resolved {
+            assert!(matches_link(
+                &config.join("skills").join(name),
+                &repo
+                    .canonicalize()
+                    .unwrap()
+                    .join("assets/skills")
+                    .join(name)
+            ));
+        }
+        assert!(!exists(&config.join("skills/one")).unwrap());
+        let installed = Installation::load(&repo, &config).unwrap();
+        assert_eq!(
+            installed.selected_skills(),
+            BTreeSet::from([
+                NORTH_PIPELINE.into(),
+                "clarify-requirements".into(),
+                "research".into(),
+                "subagent-usage".into(),
+            ])
+        );
+        let state_before = fs::read(config.join(STATE)).unwrap();
+        installed.apply(&installed.selected_skills()).unwrap();
+        assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
+
+        let installed = Installation::load(&repo, &config).unwrap();
+        let mut disabled = installed.selected_skills();
+        disabled.remove(NORTH_PIPELINE);
+        installed.apply(&disabled).unwrap();
+        for name in PIPELINE_SKILLS {
+            assert!(!exists(&config.join("skills").join(name)).unwrap());
+        }
+        for name in PIPELINE_COMMANDS {
+            assert!(!exists(&config.join("commands").join(name)).unwrap());
+        }
+        assert!(config.join("commands/north.md").is_symlink());
+        for name in &disabled {
+            assert!(config.join("skills").join(name).is_symlink());
+        }
+        let installed = Installation::load(&repo, &config).unwrap();
+        assert!(!pipeline_enabled(&installed.selected_skills()));
+        disabled.insert(NORTH_PIPELINE.into());
+        installed.apply(&disabled).unwrap();
+        assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
+        for name in PIPELINE_COMMANDS {
+            assert!(config.join("commands").join(name).is_symlink());
+        }
+        Installation::load(&repo, &config)
+            .unwrap()
+            .uninstall()
+            .unwrap();
+        assert!(!exists(&config.join("skills/north-save")).unwrap());
+        assert!(!exists(&config.join("commands")).unwrap());
+    }
+
+    #[test]
+    fn upgrading_keeps_pipeline_skills_and_commands_disabled() {
+        let (_temp, repo, config) = fixture();
+        let selected = BTreeSet::from(["two".into()]);
+        Installation::load(&repo, &config)
+            .unwrap()
+            .apply(&selected)
+            .unwrap();
+        add_pipeline(&repo);
+        let upgraded = Installation::load(&repo, &config).unwrap();
+        assert_eq!(upgraded.selected_skills(), selected);
+        upgraded.apply(&upgraded.selected_skills()).unwrap();
+        for name in ["north-plan", "north-execute", "north-save"] {
+            let relative = Path::new("commands").join(format!("{name}.md"));
+            assert!(!exists(&config.join(&relative)).unwrap());
+            assert!(!exists(&config.join("skills").join(name)).unwrap());
+        }
+        assert!(!exists(&config.join("skills/research")).unwrap());
+    }
+
+    #[test]
+    fn existing_partial_pipeline_installations_migrate_to_the_group() {
+        for name in PIPELINE_SKILLS {
+            let (_temp, repo, config) = fixture();
+            Installation::load(&repo, &config)
+                .unwrap()
+                .apply(&BTreeSet::new())
+                .unwrap();
+            add_pipeline(&repo);
+            let mut state = read_state(&config).unwrap().unwrap();
+            let relative = Path::new("skills").join(name);
+            let source = repo.canonicalize().unwrap().join("assets").join(&relative);
+            symlink(&source, config.join(&relative)).unwrap();
+            state.links.insert(relative, source);
+            fs::write(
+                config.join(STATE),
+                serde_json::to_vec_pretty(&state).unwrap(),
+            )
+            .unwrap();
+            let upgraded = Installation::load(&repo, &config).unwrap();
+            assert_eq!(
+                upgraded.selected_skills(),
+                BTreeSet::from([NORTH_PIPELINE.into()])
+            );
+            upgraded.apply(&upgraded.selected_skills()).unwrap();
+            for skill in PIPELINE_SKILLS {
+                assert!(config.join("skills").join(skill).is_symlink());
+            }
+            for command in PIPELINE_COMMANDS {
+                assert!(config.join("commands").join(command).is_symlink());
+            }
+        }
+    }
+
+    #[test]
+    fn disabling_pipeline_preserves_replacements_and_reenable_fails_atomically() {
+        let (_temp, repo, config) = fixture();
+        add_pipeline(&repo);
+        let selected = BTreeSet::from([NORTH_PIPELINE.into()]);
+        Installation::load(&repo, &config)
+            .unwrap()
+            .apply(&selected)
+            .unwrap();
+        let command = config.join("commands/north-execute.md");
+        fs::remove_file(&command).unwrap();
+        fs::write(&command, "custom command").unwrap();
+        let memory = config.join("skills/invoke-memory");
+        fs::remove_file(&memory).unwrap();
+        fs::create_dir(&memory).unwrap();
+        fs::write(memory.join("SKILL.md"), "custom memory").unwrap();
+        Installation::load(&repo, &config)
+            .unwrap()
+            .apply(&BTreeSet::new())
+            .unwrap();
+        assert_eq!(fs::read_to_string(&command).unwrap(), "custom command");
+        assert_eq!(
+            fs::read_to_string(memory.join("SKILL.md")).unwrap(),
+            "custom memory"
+        );
+        assert!(!exists(&config.join("commands/north-plan.md")).unwrap());
+        assert!(!exists(&config.join("skills/north-plan")).unwrap());
+        let disabled = Installation::load(&repo, &config).unwrap();
+        assert!(!pipeline_enabled(&disabled.selected_skills()));
+        let state_before = fs::read(config.join(STATE)).unwrap();
+        assert!(disabled.apply(&selected).is_err());
+        assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
+        assert!(!exists(&config.join("commands/north-plan.md")).unwrap());
+        assert!(!exists(&config.join("skills/north-plan")).unwrap());
+        disabled.uninstall().unwrap();
+        assert_eq!(fs::read_to_string(command).unwrap(), "custom command");
+        assert_eq!(
+            fs::read_to_string(memory.join("SKILL.md")).unwrap(),
+            "custom memory"
+        );
+    }
+
+    #[test]
+    fn missing_pipeline_assets_fail_preflight_but_do_not_prevent_uninstall() {
+        for relative in ["skills/invoke-memory/SKILL.md", "commands/north-save.md"] {
+            let (_temp, repo, config) = fixture();
+            add_pipeline(&repo);
+            let selected = BTreeSet::from([NORTH_PIPELINE.into()]);
+            Installation::load(&repo, &config)
+                .unwrap()
+                .apply(&selected)
+                .unwrap();
+            let state_before = fs::read(config.join(STATE)).unwrap();
+            fs::remove_file(repo.join("assets").join(relative)).unwrap();
+            let installed = Installation::load(&repo, &config).unwrap();
+            assert!(
+                installed
+                    .apply(&selected)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("North pipeline requires missing bundled")
+            );
+            assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
+            assert!(config.join("skills/north-plan").is_symlink());
+            assert!(!config.join(".north-install.lock").exists());
+            installed.uninstall().unwrap();
+            assert!(!exists(&config.join("commands")).unwrap());
+            assert!(!exists(&config.join("skills")).unwrap());
+        }
+    }
+
+    #[test]
+    fn missing_transitive_dependency_fails_before_installation_changes() {
+        let (_temp, repo, config) = fixture();
+        add_pipeline(&repo);
+        let selected = BTreeSet::from(["north-plan".into()]);
+        Installation::load(&repo, &config)
+            .unwrap()
+            .apply(&selected)
+            .unwrap();
+        let state_before = fs::read(config.join(STATE)).unwrap();
+        fs::remove_dir_all(repo.join("assets/skills/research")).unwrap();
+        let installed = Installation::load(&repo, &config).unwrap();
+        let error = installed.apply(&selected).unwrap_err().to_string();
+        assert!(error.contains("north-explore requires missing bundled skill research"));
+        assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
+        assert!(config.join("skills/north-plan").is_symlink());
+        assert!(!config.join(".north-install.lock").exists());
+        // Missing assets cannot prevent removal of an otherwise valid installation.
+        installed.uninstall().unwrap();
+        assert!(!exists(&config.join("skills")).unwrap());
     }
 
     #[test]

@@ -52,6 +52,40 @@ run --skills commit
 [ -L "$config/skills/commit" ]
 [ ! -e "$config/skills/auto-commit" ]
 
+# One pipeline selection controls all phase skills, memory invocation, and commands.
+run --skills north-pipeline
+for skill in north-plan north-explore north-execute north-save invoke-memory clarify-requirements research subagent-usage commit; do
+    [ "$(readlink "$config/skills/$skill")" = "$root/assets/skills/$skill" ]
+done
+for command in north north-plan north-execute north-save; do
+    [ "$(readlink "$config/commands/$command.md")" = "$root/assets/commands/$command.md" ]
+done
+for skill in explain-code auto-commit; do
+    [ ! -e "$config/skills/$skill" ]
+done
+# Old CLI selections remain aliases for the complete pipeline.
+for option in north-plan north-explore north-execute north-save invoke-memory; do
+    run --skills "$option"
+    for skill in north-plan north-explore north-execute north-save invoke-memory; do
+        [ -L "$config/skills/$skill" ]
+    done
+    for command in north-plan north-execute north-save; do
+        [ -L "$config/commands/$command.md" ]
+    done
+done
+run --skills research
+[ -L "$config/skills/research" ]
+for skill in north-plan north-explore north-execute north-save invoke-memory; do
+    [ ! -e "$config/skills/$skill" ]
+done
+for command in north-plan north-execute north-save; do
+    [ ! -e "$config/commands/$command.md" ]
+done
+[ -L "$config/commands/north.md" ]
+run --skills north-pipeline
+[ -L "$config/skills/invoke-memory" ]
+[ -L "$config/commands/north-execute.md" ]
+
 # Reruns link and unlink exactly the requested skills.
 run --skills explain-code
 [ -L "$config/skills/explain-code" ]
@@ -59,6 +93,9 @@ run --skills explain-code
 run --skills ''
 [ ! -e "$config/skills/explain-code" ]
 [ -L "$config/commands/north.md" ]
+for command in north-plan north-execute north-save; do
+    [ ! -e "$config/commands/$command.md" ]
+done
 [ -L "$config/skills/commit" ]
 run --skills unity-ui
 [ -L "$config/skills/unity-ui" ]
@@ -68,7 +105,9 @@ fail --all --uninstall
 fail < /dev/null
 run --uninstall
 [ ! -e "$config/AGENTS.md" ]
-[ ! -e "$config/commands/north.md" ]
+for command in north north-plan north-execute north-save; do
+    [ ! -e "$config/commands/$command.md" ]
+done
 [ ! -e "$config/.north-installation.json" ]
 [ ! -e "$config/skills/commit" ]
 [ ! -e "$config/skills/auto-commit" ]

@@ -15,13 +15,19 @@ named `north`, its output directory is still `<project-root>/north/`.
 At the start of work and when resuming, inspect this directory if it exists.
 Read the sources relevant to the task, including matching preference skills
 under `north/skills/*/SKILL.md` and relevant observations under `north/dry/`.
+Before implementation, use `invoke-memory` when installed to consult relevant
+`north/memories/` entries and their code/evidence references. Otherwise inspect
+the memory index and matching records directly, checking current applicability.
 Read saved preference skills directly even if they are not registered with the
 host's native skill discovery. Do not load every historical artifact by default.
-Missing North output is normal for a new project; create directories as needed.
+Missing North output is normal for a new project; create directories only when saving.
 
 Store North-produced plans, research, decisions, reports, and other supporting
 artifacts here, using descriptive names and subdirectories appropriate to the
-task. Recurring-behavior records belong in `north/dry/`; generated preference
+task. New feature plans use `north/plans/<feature>/index.md`, `research.md`, and
+linked task files under `tasks/`. Verified implementation knowledge saved by
+`north-save` belongs in `north/memories/<feature>.md`, indexed by
+`north/memories/index.md`. Recurring-behavior records belong in `north/dry/`; generated preference
 skills belong in `north/skills/<skill-name>/SKILL.md`. Update existing relevant
 artifacts instead of creating competing copies. Record enough task context and
 source references for later agents to judge whether an artifact still applies.

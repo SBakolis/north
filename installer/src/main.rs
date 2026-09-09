@@ -12,10 +12,12 @@ const HELP: &str = "North installer
 Usage: ./install.sh [--all | --skills NAME,NAME] [--openspec] [--merge]
        ./install.sh --uninstall
 
-With no options, open the interactive skill checklist.
-  --all          Install North with all skills enabled, including Auto commit
-  --skills LIST  Select skills; include auto-commit to enable Auto commit
+With no options, open the categorized installer checklist.
+  --all          Enable all skills, Auto commit, and North pipeline
+  --skills LIST  Select skills and workflows; include auto-commit for Auto commit
                  Otherwise commit is linked (use '' for only commit)
+                 Include north-pipeline for its commands, skills, and memory
+                 Required skill dependencies are included automatically
   --openspec     Install OpenSpec globally with npm if missing (Node.js 20.19.0+)
                  Alone, keeps the current skill selection (all on first install)
   --merge        Merge North into opencode.json/jsonc; keep existing instructions
@@ -125,12 +127,17 @@ fn run() -> Result<()> {
             merge,
         } => {
             let selected = skills.unwrap_or_else(|| installation.skill_names());
+            let resolved = installation.resolved_skills(&selected)?;
             installation.apply_with_merge(&selected, merge)?;
             println!(
                 "North installed in {} with {} enabled skills. Rerun ./install.sh to manage or uninstall it.",
                 installation.config.display(),
-                installation.resolved_skills(&selected)?.len()
+                resolved.len()
             );
+            let included: Vec<_> = resolved.difference(&selected).cloned().collect();
+            if !included.is_empty() {
+                println!("Automatically included: {}.", included.join(", "));
+            }
             if openspec {
                 openspec::ensure_installed()
                     .context("North was saved, but OpenSpec setup failed")?;
