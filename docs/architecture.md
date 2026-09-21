@@ -1,25 +1,41 @@
 # Architecture
 
 North consists of `install.sh`, shared instructions, Markdown commands, four subagent
-definitions, and task-specific skills. Installation links these assets into OpenCode's global
-configuration. OpenCode loads the instructions and executes the subagents with
-its native Task tool.
+definitions, and task-specific skills. Installation links these assets into the
+global configuration of OpenCode or Claude Code. The tool loads the instructions
+and executes the subagents with its native delegation tool (Task in OpenCode,
+Agent in Claude Code).
 
-Commands live in `assets/commands/*.md` and install into OpenCode's global
-`commands/` directory. `/north` is always installed and directs the primary build
-agent to create the current project's `north/` directory and offer OpenSpec initialization when
-the CLI is installed. The confirmation and setup run in the current conversation.
-See [OpenCode commands](https://opencode.ai/docs/commands/) for the command format.
+Assets are split by what differs between tools. `assets/skills/` is shared:
+both tools read the same `SKILL.md` format. `assets/opencode/` and
+`assets/claude/` each hold the tool's `instructions/core.md`, `agents/`, and
+`commands/`, because instruction wording, agent frontmatter, and command
+frontmatter are tool-specific. OpenCode agents declare `mode: subagent` and a
+`permission` map; Claude Code agents declare `name`, `tools`, `disallowedTools`,
+and `permissionMode`. The installer records which tool an installation belongs
+to and still recognizes links into the earlier flat `assets/` layout.
+
+Commands live in `assets/<tool>/commands/*.md` and install into the tool's global
+`commands/` directory. `/north` is always installed and directs the primary
+agent to create the current project's `north/` directory and offer OpenSpec
+initialization when the CLI is installed, using `openspec init --tools opencode`
+or `--tools claude`. The confirmation and setup run in the current conversation.
+See [OpenCode commands](https://opencode.ai/docs/commands/) and
+[Claude Code skills](https://code.claude.com/docs/en/skills) for the formats.
 
 The **North pipeline** workflow toggle installs `/north-plan`, `/north-execute`,
-and `/north-save` with the five pipeline skills and their prerequisites. The
-commands guide planning, implementation, and saving implementation knowledge,
-then suggest the next command when their stage completes. If a required skill
-is absent, the command directs the user to enable **North pipeline** through the
-installer before continuing. Disabling the group removes its owned links while
-preserving project plans and memories.
+and `/north-save` with the five pipeline skills and their prerequisites. In
+OpenCode, Markdown command wrappers load the matching skill. In Claude Code,
+installed skills are slash commands themselves and a skill shadows a command of
+the same name, so no wrappers are installed and the pipeline skills answer
+directly, receiving the typed arguments. The commands guide planning,
+implementation, and saving implementation knowledge, then suggest the next
+command when their stage completes. If a required skill is absent, the command
+directs the user to enable **North pipeline** through the installer before
+continuing. Disabling the group removes its owned links while preserving project
+plans and memories.
 
-Skills live in `assets/skills/<name>/SKILL.md`. OpenCode discovers their names
+Skills live in `assets/skills/<name>/SKILL.md`. The tool discovers their names
 and descriptions and loads the full instructions through its native skill tool
 when relevant. Skills guide how an agent performs a task; subagents provide
 delegated execution. Both primary agents and subagents can use skills.
@@ -93,8 +109,8 @@ single-file plans can resume in place without being rewritten.
 
 `/north-execute <feature-slug-or-plan-path>` checks relevant memories, validates
 the DAG, and freezes its topological layers before dispatch. The primary agent
-launches independent tasks within the current layer through OpenCode's native
-Task tool, with a default concurrency limit of two. It reviews results and
+launches independent tasks within the current layer through the tool's native
+delegation tool, with a default concurrency limit of two. It reviews results and
 verifies the whole layer before starting the next. Tasks move through `pending`,
 `running`, `needs-review`, `done`, or `blocked`; a worker report alone cannot mark
 a task done. Changes to the graph require updated layers before further dispatch.
@@ -116,6 +132,6 @@ has no executable scheduler, subprocess runner, machine-validated plan schema,
 approval database, automatic worktree management, or integration service. Plan
 files persist progress and evidence; they do not provide automatic crash recovery.
 
-Agent frontmatter supplies OpenCode permissions and Markdown supplies workflow
+Agent frontmatter supplies each tool's permissions and Markdown supplies workflow
 guidance. File scopes and validation expectations are instructions, not enforced
 filesystem boundaries. The primary agent remains responsible for checking work.

@@ -1,4 +1,5 @@
 use crate::config::ConfigMerge;
+use crate::tool::Tool;
 use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -10,7 +11,6 @@ use std::{
 };
 
 const STATE: &str = ".north-installation.json";
-const BACKUP: &str = "AGENTS-backup.md";
 const COMMIT: &str = "commit";
 pub const AUTO_COMMIT: &str = "auto-commit";
 pub const NORTH_PIPELINE: &str = "north-pipeline";
@@ -21,7 +21,6 @@ pub const PIPELINE_SKILLS: &[&str] = &[
     "north-save",
     "invoke-memory",
 ];
-const PIPELINE_COMMANDS: &[&str] = &["north-plan.md", "north-execute.md", "north-save.md"];
 
 pub fn pipeline_enabled(selected: &BTreeSet<String>) -> bool {
     selected.contains(NORTH_PIPELINE) || PIPELINE_SKILLS.iter().any(|name| selected.contains(*name))
@@ -51,9 +50,32 @@ fn skill_dependencies(name: &str) -> &'static [&'static str] {
     }
 }
 
+// Skills are shared; instructions, agents, and commands are tool-specific.
+// Earlier OpenCode installations linked to the flat `assets/` layout.
+fn asset_sources(tool: Tool, repo: &Path, relative: &Path) -> Vec<PathBuf> {
+    let assets = repo.join("assets");
+    let mut sources = Vec::new();
+    if relative == Path::new(tool.instructions()) {
+        sources.push(assets.join(tool.id()).join("instructions/core.md"));
+        if tool == Tool::OpenCode {
+            sources.push(assets.join("instructions/core.md"));
+        }
+    } else if relative.starts_with("skills") {
+        sources.push(assets.join(relative));
+    } else {
+        sources.push(assets.join(tool.id()).join(relative));
+        if tool == Tool::OpenCode {
+            sources.push(assets.join(relative));
+        }
+    }
+    sources
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct State {
     version: u32,
+    #[serde(default)]
+    tool: Tool,
     repo: PathBuf,
     backup: bool,
     links: BTreeMap<PathBuf, PathBuf>,
@@ -62,6 +84,7 @@ struct State {
 }
 
 pub struct Installation {
+    pub tool: Tool,
     pub config: PathBuf,
     pub skills: Vec<String>,
     repo: PathBuf,
@@ -92,7 +115,7 @@ fn check_directory(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn read_state(config: &Path) -> Result<Option<State>> {
+fn read_state(config: &Path, tool: Tool) -> Result<Option<State>> {
     let path = config.join(STATE);
     if !exists(&path)? {
         return Ok(None);
@@ -112,6 +135,12 @@ fn read_state(config: &Path) -> Result<Option<State>> {
         matches!(state.version, 1 | 2) && state.repo.is_absolute(),
         "Unsupported North installation state"
     );
+    ensure!(
+        state.tool == tool,
+        "North installation state at {} belongs to {}",
+        path.display(),
+        state.tool.label()
+    );
     for (relative, source) in &state.links {
         let parts: Vec<_> = relative.components().collect();
         ensure!(
@@ -120,9 +149,7 @@ fn read_state(config: &Path) -> Result<Option<State>> {
                 .all(|part| matches!(part, Component::Normal(_))),
             "Invalid path in North installation state"
         );
-        let expected = if relative == Path::new("AGENTS.md") {
-            state.repo.join("assets/instructions/core.md")
-        } else {
+        if relative != Path::new(tool.instructions()) {
             ensure!(
                 parts.len() == 2
                     && ["skills", "agents", "commands"]
@@ -130,42 +157,48 @@ fn read_state(config: &Path) -> Result<Option<State>> {
                         .any(|folder| parts[0].as_os_str() == *folder),
                 "Invalid link in North installation state"
             );
-            state.repo.join("assets").join(relative)
-        };
+        }
         ensure!(
-            source == &expected,
+            asset_sources(tool, &state.repo, relative).contains(source),
             "Invalid source in North installation state"
         );
     }
     let mut names = BTreeSet::new();
     for config in &state.configs {
         ensure!(
-            ["opencode.json", "opencode.jsonc"].contains(&config.file.as_str())
-                && names.insert(&config.file),
+            tool.config_files().contains(&config.file.as_str()) && names.insert(&config.file),
             "Invalid configuration file in North installation state"
         );
     }
     ensure!(
-        state.links.contains_key(Path::new("AGENTS.md")) || !state.configs.is_empty(),
+        state.links.contains_key(Path::new(tool.instructions())) || !state.configs.is_empty(),
         "Missing instructions link in North installation state"
     );
     Ok(Some(state))
 }
 
 impl Installation {
-    pub fn load(repo: &Path, config: &Path) -> Result<Self> {
+    pub fn load(repo: &Path, tool: Tool, config: &Path) -> Result<Self> {
         let repo = repo.canonicalize().context("Locating North checkout")?;
         check_directory(config)?;
         check_directory(&config.join("agents"))?;
         check_directory(&config.join("skills"))?;
         check_directory(&config.join("commands"))?;
         let mut available = BTreeMap::new();
-        let core = repo.join("assets/instructions/core.md");
+        let instructions = PathBuf::from(tool.instructions());
+        let core = asset_sources(tool, &repo, &instructions).remove(0);
         ensure!(core.is_file(), "Missing {}", core.display());
-        available.insert(PathBuf::from("AGENTS.md"), core);
+        available.insert(instructions, core);
         let mut skills = Vec::new();
         for folder in ["agents", "skills", "commands"] {
-            for entry in fs::read_dir(repo.join("assets").join(folder))? {
+            let directory = if folder == "skills" {
+                repo.join("assets/skills")
+            } else {
+                repo.join("assets").join(tool.id()).join(folder)
+            };
+            for entry in fs::read_dir(&directory)
+                .with_context(|| format!("Reading {}", directory.display()))?
+            {
                 let entry = entry?;
                 let path = entry.path();
                 let relevant = if folder == "skills" {
@@ -201,7 +234,8 @@ impl Installation {
             "The commit and auto-commit skills must be bundled together"
         );
         Ok(Self {
-            state: read_state(config)?,
+            state: read_state(config, tool)?,
+            tool,
             repo,
             config: config.to_owned(),
             available,
@@ -213,16 +247,22 @@ impl Installation {
         self.skills.iter().cloned().collect()
     }
 
-    // Adopt links from the previous shell installer, which had no state file.
+    // Adopt links from the previous shell installer, which had no state file,
+    // including links into the earlier flat asset layout.
     fn owned_links(&self) -> BTreeMap<PathBuf, PathBuf> {
         self.state
             .as_ref()
             .map(|state| state.links.clone())
             .unwrap_or_else(|| {
                 self.available
-                    .iter()
-                    .filter(|(relative, source)| matches_link(&self.config.join(relative), source))
-                    .map(|(relative, source)| (relative.clone(), source.clone()))
+                    .keys()
+                    .filter_map(|relative| {
+                        let target = self.config.join(relative);
+                        asset_sources(self.tool, &self.repo, relative)
+                            .into_iter()
+                            .find(|source| matches_link(&target, source))
+                            .map(|source| (relative.clone(), source))
+                    })
                     .collect()
             })
     }
@@ -271,7 +311,7 @@ impl Installation {
         fs::create_dir(&path).with_context(|| format!("Cannot lock installation. Another installer may be running; if it crashed, remove {} and retry", path.display()))?;
         let lock = Lock(path);
         ensure!(
-            read_state(&self.config)? == self.state,
+            read_state(&self.config, self.tool)? == self.state,
             "Installation changed while the menu was open; rerun install.sh"
         );
         check_directory(&self.config.join("agents"))?;
@@ -312,7 +352,7 @@ impl Installation {
                 );
                 resolved.insert(name.into());
             }
-            for &name in PIPELINE_COMMANDS {
+            for &name in self.tool.pipeline_commands() {
                 ensure!(
                     self.available
                         .contains_key(&Path::new("commands").join(name)),
@@ -366,22 +406,24 @@ impl Installation {
                 );
             }
         }
+        let instructions = Path::new(self.tool.instructions());
+        let pipeline_commands = self.tool.pipeline_commands();
         let desired: BTreeMap<_, _> = self
             .available
             .iter()
             .filter(|(relative, _)| {
-                (!merge || relative.as_path() != Path::new("AGENTS.md"))
+                (!merge || relative.as_path() != instructions)
                     && (pipeline
                         || !relative.starts_with("commands")
-                        || !PIPELINE_COMMANDS
+                        || !pipeline_commands
                             .contains(&relative.file_name().unwrap().to_str().unwrap()))
                     && (!relative.starts_with("skills")
                         || selected.contains(relative.file_name().unwrap().to_str().unwrap()))
             })
             .map(|(relative, source)| (relative.clone(), source.clone()))
             .collect();
-        let agents = self.config.join("AGENTS.md");
-        let backup = self.config.join(BACKUP);
+        let agents = self.config.join(instructions);
+        let backup = self.config.join(self.tool.backup());
         let mut has_backup = self.state.as_ref().is_some_and(|state| state.backup);
         if has_backup {
             ensure!(
@@ -396,24 +438,48 @@ impl Installation {
                 backup.display()
             );
         }
-        let (configs, mut actions) = self.config_changes(merge)?;
+        // When merge mode edits the instructions file itself, it edits the
+        // original instructions restored from the backup, not North's link.
+        let linked_instructions = owned
+            .get(instructions)
+            .is_some_and(|source| matches_link(&agents, source));
+        let instructions_before = if merge && linked_instructions {
+            Some(if has_backup {
+                read_config(&backup)?
+            } else {
+                None
+            })
+        } else {
+            None
+        };
+        let (configs, config_actions) = self.config_changes(merge, instructions_before)?;
+        let instructions_removed = config_actions
+            .iter()
+            .any(|action| matches!(action, Change::Config(path, _, None) if *path == agents));
+        // Removing additions precedes relinking the instructions; adding them
+        // follows restoring the original instructions from the backup.
+        let (mut actions, mut config_actions) = if merge {
+            (Vec::new(), config_actions)
+        } else {
+            (config_actions, Vec::new())
+        };
         for (relative, source) in &desired {
             let target = self.config.join(relative);
             if matches_link(&target, source) {
                 continue;
             }
-            if exists(&target)? {
+            let removed = relative == instructions && instructions_removed;
+            if exists(&target)? && !removed {
                 if owned
                     .get(relative)
                     .is_some_and(|old| matches_link(&target, old))
                 {
                     actions.push(Change::Unlink(target.clone(), owned[relative].clone()));
-                } else if relative == Path::new("AGENTS.md")
-                    && (self.state.is_none() || self.merging())
-                {
+                } else if relative == instructions && (self.state.is_none() || self.merging()) {
                     ensure!(
                         !fs::symlink_metadata(&agents)?.is_dir(),
-                        "AGENTS.md must be a file or symlink"
+                        "{} must be a file or symlink",
+                        instructions.display()
                     );
                     actions.push(Change::Rename(agents.clone(), backup.clone()));
                     has_backup = true;
@@ -434,17 +500,17 @@ impl Installation {
         }
         if merge && has_backup {
             ensure!(
-                owned
-                    .get(Path::new("AGENTS.md"))
-                    .is_some_and(|source| matches_link(&agents, source))
-                    || !exists(&agents)?,
-                "AGENTS.md was changed outside North; move it aside before restoring the backup"
+                linked_instructions || !exists(&agents)?,
+                "{} was changed outside North; move it aside before restoring the backup",
+                instructions.display()
             );
             actions.push(Change::Rename(backup, agents));
             has_backup = false;
         }
+        actions.append(&mut config_actions);
         let state = State {
             version: if configs.is_empty() { 1 } else { 2 },
+            tool: self.tool,
             repo: self.repo.clone(),
             backup: has_backup,
             links: desired,
@@ -457,7 +523,43 @@ impl Installation {
         transact(&actions, || write_state(&self.config, &bytes))
     }
 
-    fn config_changes(&self, merge: bool) -> Result<(Vec<ConfigMerge>, Vec<Change>)> {
+    fn merge_config(&self, name: String, original: Option<String>) -> Result<ConfigMerge> {
+        let core = self.available[Path::new(self.tool.instructions())].clone();
+        match self.tool {
+            Tool::OpenCode => {
+                let path = self.repo.join("assets/opencode/opencode.json");
+                let mut north = serde_json::from_slice::<serde_json::Value>(
+                    &fs::read(&path).with_context(|| format!("Reading {}", path.display()))?,
+                )?;
+                ensure!(north.is_object(), "North configuration must be an object");
+                let instructions = north
+                    .as_object_mut()
+                    .unwrap()
+                    .entry("instructions")
+                    .or_insert(serde_json::json!([]));
+                let instructions = instructions
+                    .as_array_mut()
+                    .context("North instructions must be an array")?;
+                let core = serde_json::json!(core);
+                if !instructions.contains(&core) {
+                    instructions.push(core);
+                }
+                ConfigMerge::new(name, original, &north)
+            }
+            Tool::Claude => {
+                let core = core
+                    .to_str()
+                    .context("The North checkout path must be UTF-8")?;
+                ConfigMerge::import(name, original, &format!("@{core}"))
+            }
+        }
+    }
+
+    fn config_changes(
+        &self,
+        merge: bool,
+        instructions_before: Option<Option<String>>,
+    ) -> Result<(Vec<ConfigMerge>, Vec<Change>)> {
         let previous = self
             .state
             .as_ref()
@@ -466,46 +568,26 @@ impl Installation {
         if !merge && previous.is_empty() {
             return Ok((Vec::new(), Vec::new()));
         }
-        let mut north = if merge {
-            let path = self.repo.join("assets/opencode.json");
-            serde_json::from_slice::<serde_json::Value>(
-                &fs::read(&path).with_context(|| format!("Reading {}", path.display()))?,
-            )?
-        } else {
-            serde_json::json!({})
-        };
-        ensure!(north.is_object(), "North configuration must be an object");
-        if merge {
-            let instructions = north
-                .as_object_mut()
-                .unwrap()
-                .entry("instructions")
-                .or_insert(serde_json::json!([]));
-            let instructions = instructions
-                .as_array_mut()
-                .context("North instructions must be an array")?;
-            let core = serde_json::json!(self.repo.join("assets/instructions/core.md"));
-            if !instructions.contains(&core) {
-                instructions.push(core);
-            }
-        }
         let mut names: BTreeSet<String> =
             previous.iter().map(|config| config.file.clone()).collect();
         if merge {
-            for name in ["opencode.json", "opencode.jsonc"] {
+            for name in self.tool.config_files() {
                 if exists(&self.config.join(name))? {
-                    names.insert(name.into());
+                    names.insert((*name).into());
                 }
             }
             if names.is_empty() {
-                names.insert("opencode.json".into());
+                names.insert(self.tool.config_files()[0].into());
             }
         }
         let mut configs = Vec::new();
         let mut actions = Vec::new();
         for name in names {
             let path = self.config.join(&name);
-            let before = read_config(&path)?;
+            let before = match &instructions_before {
+                Some(before) if name == self.tool.instructions() => before.clone(),
+                _ => read_config(&path)?,
+            };
             let original = match previous.iter().find(|config| config.file == name) {
                 Some(config) => config
                     .remove(before.as_deref())
@@ -513,7 +595,8 @@ impl Installation {
                 None => before.clone(),
             };
             let after = if merge {
-                let config = ConfigMerge::new(name, original, &north)
+                let config = self
+                    .merge_config(name, original)
                     .with_context(|| format!("Merging {}", path.display()))?;
                 let after = Some(config.applied.clone());
                 configs.push(config);
@@ -531,7 +614,7 @@ impl Installation {
     pub fn uninstall(&self) -> Result<()> {
         let _lock = self.lock()?;
         let owned = self.owned_links();
-        let (_, mut actions) = self.config_changes(false)?;
+        let (_, mut actions) = self.config_changes(false, None)?;
         for (relative, source) in &owned {
             let target = self.config.join(relative);
             if matches_link(&target, source) {
@@ -539,8 +622,9 @@ impl Installation {
             }
         }
         if self.state.as_ref().is_some_and(|state| state.backup) {
-            let agents = self.config.join("AGENTS.md");
-            let backup = self.config.join(BACKUP);
+            let instructions = Path::new(self.tool.instructions());
+            let agents = self.config.join(instructions);
+            let backup = self.config.join(self.tool.backup());
             ensure!(
                 exists(&backup)? && !fs::symlink_metadata(&backup)?.is_dir(),
                 "Saved {} is missing or invalid; restore it before uninstalling",
@@ -549,9 +633,10 @@ impl Installation {
             ensure!(
                 !exists(&agents)?
                     || owned
-                        .get(Path::new("AGENTS.md"))
+                        .get(instructions)
                         .is_some_and(|source| matches_link(&agents, source)),
-                "AGENTS.md was changed outside North; move it aside before restoring the backup"
+                "{} was changed outside North; move it aside before restoring the backup",
+                instructions.display()
             );
             actions.push(Change::Rename(backup, agents));
         }
@@ -636,7 +721,7 @@ fn transact(actions: &[Change], commit: impl FnOnce() -> Result<()>) -> Result<(
         }
         if !failures.is_empty() {
             bail!(
-                "{error:#}. Recovery also failed: {}. Preserve AGENTS-backup.md and installation state for manual recovery",
+                "{error:#}. Recovery also failed: {}. Preserve the instructions backup and installation state for manual recovery",
                 failures.join("; ")
             );
         }
@@ -719,21 +804,24 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    const BACKUP: &str = "AGENTS-backup.md";
+    const PIPELINE_COMMANDS: &[&str] = &["north-plan.md", "north-execute.md", "north-save.md"];
+
     fn fixture() -> (TempDir, PathBuf, PathBuf) {
         let temp = tempfile::tempdir().unwrap();
         let repo = temp.path().join("repo");
         let config = temp.path().join("config");
-        fs::create_dir_all(repo.join("assets/instructions")).unwrap();
-        fs::create_dir_all(repo.join("assets/agents")).unwrap();
-        fs::create_dir_all(repo.join("assets/commands")).unwrap();
-        fs::write(repo.join("assets/instructions/core.md"), "north").unwrap();
+        fs::create_dir_all(repo.join("assets/opencode/instructions")).unwrap();
+        fs::create_dir_all(repo.join("assets/opencode/agents")).unwrap();
+        fs::create_dir_all(repo.join("assets/opencode/commands")).unwrap();
+        fs::write(repo.join("assets/opencode/instructions/core.md"), "north").unwrap();
         fs::write(
-            repo.join("assets/opencode.json"),
+            repo.join("assets/opencode/opencode.json"),
             r#"{"plugin":["north-plugin"],"permission":{"edit":"ask"}}"#,
         )
         .unwrap();
-        fs::write(repo.join("assets/agents/north-worker.md"), "agent").unwrap();
-        fs::write(repo.join("assets/commands/north.md"), "command").unwrap();
+        fs::write(repo.join("assets/opencode/agents/north-worker.md"), "agent").unwrap();
+        fs::write(repo.join("assets/opencode/commands/north.md"), "command").unwrap();
         for name in ["one", "two"] {
             fs::create_dir_all(repo.join("assets/skills").join(name)).unwrap();
             fs::write(
@@ -743,6 +831,27 @@ mod tests {
             .unwrap();
         }
         (temp, repo, config)
+    }
+
+    fn add_claude(repo: &Path) {
+        fs::create_dir_all(repo.join("assets/claude/instructions")).unwrap();
+        fs::create_dir_all(repo.join("assets/claude/agents")).unwrap();
+        fs::create_dir_all(repo.join("assets/claude/commands")).unwrap();
+        fs::write(
+            repo.join("assets/claude/instructions/core.md"),
+            "claude north",
+        )
+        .unwrap();
+        fs::write(
+            repo.join("assets/claude/agents/north-worker.md"),
+            "claude agent",
+        )
+        .unwrap();
+        fs::write(
+            repo.join("assets/claude/commands/north.md"),
+            "claude command",
+        )
+        .unwrap();
     }
 
     fn add_commit_modes(repo: &Path) {
@@ -771,7 +880,8 @@ mod tests {
         }
         for name in ["north-plan", "north-execute", "north-save"] {
             fs::write(
-                repo.join("assets/commands").join(format!("{name}.md")),
+                repo.join("assets/opencode/commands")
+                    .join(format!("{name}.md")),
                 "command",
             )
             .unwrap();
@@ -795,7 +905,7 @@ mod tests {
             "prototype",
             "skill-evaluation",
         ] {
-            let installation = Installation::load(repo, &config).unwrap();
+            let installation = Installation::load(repo, Tool::OpenCode, &config).unwrap();
             installation.apply(&BTreeSet::from([name.into()])).unwrap();
             assert!(config.join("skills").join(name).is_symlink());
             assert_eq!(fs::read_to_string(config.join(contract)).unwrap(), expected);
@@ -811,7 +921,7 @@ mod tests {
         let (_temp, repo, config) = fixture();
         add_pipeline(&repo);
         add_commit_modes(&repo);
-        let installation = Installation::load(&repo, &config).unwrap();
+        let installation = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert!(installation.skill_names().contains(NORTH_PIPELINE));
         assert!(installation.selected_skills().contains(NORTH_PIPELINE));
         assert!(
@@ -865,7 +975,7 @@ mod tests {
         let (_temp, repo, config) = fixture();
         add_pipeline(&repo);
         let selected = BTreeSet::from([NORTH_PIPELINE.into()]);
-        let initial = Installation::load(&repo, &config).unwrap();
+        let initial = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         let resolved = initial.resolved_skills(&selected).unwrap();
         initial.apply(&selected).unwrap();
         for name in &resolved {
@@ -879,7 +989,7 @@ mod tests {
             ));
         }
         assert!(!exists(&config.join("skills/one")).unwrap());
-        let installed = Installation::load(&repo, &config).unwrap();
+        let installed = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert_eq!(
             installed.selected_skills(),
             BTreeSet::from([
@@ -894,7 +1004,7 @@ mod tests {
         installed.apply(&installed.selected_skills()).unwrap();
         assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
 
-        let installed = Installation::load(&repo, &config).unwrap();
+        let installed = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         let mut disabled = installed.selected_skills();
         disabled.remove(NORTH_PIPELINE);
         installed.apply(&disabled).unwrap();
@@ -908,7 +1018,7 @@ mod tests {
         for name in &disabled {
             assert!(config.join("skills").join(name).is_symlink());
         }
-        let installed = Installation::load(&repo, &config).unwrap();
+        let installed = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert!(!pipeline_enabled(&installed.selected_skills()));
         disabled.insert(NORTH_PIPELINE.into());
         installed.apply(&disabled).unwrap();
@@ -916,7 +1026,7 @@ mod tests {
         for name in PIPELINE_COMMANDS {
             assert!(config.join("commands").join(name).is_symlink());
         }
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .uninstall()
             .unwrap();
@@ -928,12 +1038,12 @@ mod tests {
     fn upgrading_keeps_pipeline_skills_and_commands_disabled() {
         let (_temp, repo, config) = fixture();
         let selected = BTreeSet::from(["two".into()]);
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .apply(&selected)
             .unwrap();
         add_pipeline(&repo);
-        let upgraded = Installation::load(&repo, &config).unwrap();
+        let upgraded = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert_eq!(upgraded.selected_skills(), selected);
         upgraded.apply(&upgraded.selected_skills()).unwrap();
         for name in ["north-plan", "north-execute", "north-save"] {
@@ -948,12 +1058,12 @@ mod tests {
     fn existing_partial_pipeline_installations_migrate_to_the_group() {
         for name in PIPELINE_SKILLS {
             let (_temp, repo, config) = fixture();
-            Installation::load(&repo, &config)
+            Installation::load(&repo, Tool::OpenCode, &config)
                 .unwrap()
                 .apply(&BTreeSet::new())
                 .unwrap();
             add_pipeline(&repo);
-            let mut state = read_state(&config).unwrap().unwrap();
+            let mut state = read_state(&config, Tool::OpenCode).unwrap().unwrap();
             let relative = Path::new("skills").join(name);
             let source = repo.canonicalize().unwrap().join("assets").join(&relative);
             symlink(&source, config.join(&relative)).unwrap();
@@ -963,7 +1073,7 @@ mod tests {
                 serde_json::to_vec_pretty(&state).unwrap(),
             )
             .unwrap();
-            let upgraded = Installation::load(&repo, &config).unwrap();
+            let upgraded = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
             assert_eq!(
                 upgraded.selected_skills(),
                 BTreeSet::from([NORTH_PIPELINE.into()])
@@ -983,7 +1093,7 @@ mod tests {
         let (_temp, repo, config) = fixture();
         add_pipeline(&repo);
         let selected = BTreeSet::from([NORTH_PIPELINE.into()]);
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .apply(&selected)
             .unwrap();
@@ -994,7 +1104,7 @@ mod tests {
         fs::remove_file(&memory).unwrap();
         fs::create_dir(&memory).unwrap();
         fs::write(memory.join("SKILL.md"), "custom memory").unwrap();
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .apply(&BTreeSet::new())
             .unwrap();
@@ -1005,7 +1115,7 @@ mod tests {
         );
         assert!(!exists(&config.join("commands/north-plan.md")).unwrap());
         assert!(!exists(&config.join("skills/north-plan")).unwrap());
-        let disabled = Installation::load(&repo, &config).unwrap();
+        let disabled = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert!(!pipeline_enabled(&disabled.selected_skills()));
         let state_before = fs::read(config.join(STATE)).unwrap();
         assert!(disabled.apply(&selected).is_err());
@@ -1022,17 +1132,20 @@ mod tests {
 
     #[test]
     fn missing_pipeline_assets_fail_preflight_but_do_not_prevent_uninstall() {
-        for relative in ["skills/invoke-memory/SKILL.md", "commands/north-save.md"] {
+        for relative in [
+            "skills/invoke-memory/SKILL.md",
+            "opencode/commands/north-save.md",
+        ] {
             let (_temp, repo, config) = fixture();
             add_pipeline(&repo);
             let selected = BTreeSet::from([NORTH_PIPELINE.into()]);
-            Installation::load(&repo, &config)
+            Installation::load(&repo, Tool::OpenCode, &config)
                 .unwrap()
                 .apply(&selected)
                 .unwrap();
             let state_before = fs::read(config.join(STATE)).unwrap();
             fs::remove_file(repo.join("assets").join(relative)).unwrap();
-            let installed = Installation::load(&repo, &config).unwrap();
+            let installed = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
             assert!(
                 installed
                     .apply(&selected)
@@ -1054,13 +1167,13 @@ mod tests {
         let (_temp, repo, config) = fixture();
         add_pipeline(&repo);
         let selected = BTreeSet::from(["north-plan".into()]);
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .apply(&selected)
             .unwrap();
         let state_before = fs::read(config.join(STATE)).unwrap();
         fs::remove_dir_all(repo.join("assets/skills/research")).unwrap();
-        let installed = Installation::load(&repo, &config).unwrap();
+        let installed = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         let error = installed.apply(&selected).unwrap_err().to_string();
         assert!(error.contains("north-explore requires missing bundled skill research"));
         assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
@@ -1086,7 +1199,7 @@ mod tests {
             fs::Permissions::from_mode(0o640),
         )
         .unwrap();
-        let initial = Installation::load(&repo, &config).unwrap();
+        let initial = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         initial.apply_with_merge(&BTreeSet::new(), true).unwrap();
         assert_eq!(
             fs::read_to_string(config.join("AGENTS.md")).unwrap(),
@@ -1121,13 +1234,13 @@ mod tests {
             serde_json::json!([repo
                 .canonicalize()
                 .unwrap()
-                .join("assets/instructions/core.md")])
+                .join("assets/opencode/instructions/core.md")])
         );
-        let installed = Installation::load(&repo, &config).unwrap();
+        let installed = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert!(installed.merging());
         installed.apply(&BTreeSet::new()).unwrap();
         assert_eq!(fs::read(config.join("opencode.json")).unwrap(), before);
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .uninstall()
             .unwrap();
@@ -1150,10 +1263,10 @@ mod tests {
         let (_temp, repo, config) = fixture();
         fs::create_dir_all(&config).unwrap();
         fs::write(config.join("AGENTS.md"), "original").unwrap();
-        let initial = Installation::load(&repo, &config).unwrap();
+        let initial = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         initial.apply(&BTreeSet::new()).unwrap();
         for _ in 0..2 {
-            Installation::load(&repo, &config)
+            Installation::load(&repo, Tool::OpenCode, &config)
                 .unwrap()
                 .apply_with_merge(&BTreeSet::new(), true)
                 .unwrap();
@@ -1163,7 +1276,7 @@ mod tests {
             );
             assert!(!config.join(BACKUP).exists());
             assert!(config.join("opencode.json").exists());
-            Installation::load(&repo, &config)
+            Installation::load(&repo, Tool::OpenCode, &config)
                 .unwrap()
                 .apply_with_merge(&BTreeSet::new(), false)
                 .unwrap();
@@ -1171,7 +1284,7 @@ mod tests {
             assert_eq!(fs::read_to_string(config.join(BACKUP)).unwrap(), "original");
             assert!(!config.join("opencode.json").exists());
         }
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .uninstall()
             .unwrap();
@@ -1184,7 +1297,7 @@ mod tests {
     #[test]
     fn merge_updates_plugins_and_relocated_instructions_without_losing_user_edits() {
         let (temp, repo, config) = fixture();
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .apply_with_merge(&BTreeSet::new(), true)
             .unwrap();
@@ -1200,11 +1313,11 @@ mod tests {
         let moved = temp.path().join("moved repo");
         fs::rename(repo, &moved).unwrap();
         fs::write(
-            moved.join("assets/opencode.json"),
+            moved.join("assets/opencode/opencode.json"),
             r#"{"plugin":["north-v2"]}"#,
         )
         .unwrap();
-        Installation::load(&moved, &config)
+        Installation::load(&moved, Tool::OpenCode, &config)
             .unwrap()
             .apply(&BTreeSet::new())
             .unwrap();
@@ -1218,9 +1331,9 @@ mod tests {
             serde_json::json!([moved
                 .canonicalize()
                 .unwrap()
-                .join("assets/instructions/core.md")])
+                .join("assets/opencode/instructions/core.md")])
         );
-        Installation::load(&moved, &config)
+        Installation::load(&moved, Tool::OpenCode, &config)
             .unwrap()
             .uninstall()
             .unwrap();
@@ -1239,7 +1352,7 @@ mod tests {
             let path = config.join("opencode.jsonc");
             match conflict {
                 "invalid" => fs::write(&path, "{ broken").unwrap(),
-                "symlink" => symlink(repo.join("assets/opencode.json"), &path).unwrap(),
+                "symlink" => symlink(repo.join("assets/opencode/opencode.json"), &path).unwrap(),
                 _ => {
                     fs::write(&path, "{}").unwrap();
                     fs::write(config.join("agents/north-worker.md"), "custom").unwrap();
@@ -1247,7 +1360,7 @@ mod tests {
             }
             let before = fs::read(&path).unwrap();
             assert!(
-                Installation::load(&repo, &config)
+                Installation::load(&repo, Tool::OpenCode, &config)
                     .unwrap()
                     .apply_with_merge(&BTreeSet::new(), true)
                     .is_err()
@@ -1292,7 +1405,7 @@ mod tests {
     fn commit_modes_are_exclusive_and_survive_reruns() {
         let (_temp, repo, config) = fixture();
         add_commit_modes(&repo);
-        let initial = Installation::load(&repo, &config).unwrap();
+        let initial = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert!(initial.selected_skills().contains(AUTO_COMMIT));
         assert!(!initial.skills.iter().any(|name| name == COMMIT));
         initial.apply(&initial.selected_skills()).unwrap();
@@ -1305,10 +1418,10 @@ mod tests {
         ));
         assert!(!exists(&config.join("skills/commit")).unwrap());
 
-        let installed = Installation::load(&repo, &config).unwrap();
+        let installed = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert!(installed.selected_skills().contains(AUTO_COMMIT));
         installed.apply(&BTreeSet::new()).unwrap();
-        let manual = Installation::load(&repo, &config).unwrap();
+        let manual = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert!(manual.selected_skills().is_empty());
         assert_eq!(
             manual.resolved_skills(&BTreeSet::new()).unwrap(),
@@ -1320,10 +1433,10 @@ mod tests {
         ));
         assert!(!exists(&config.join("skills/auto-commit")).unwrap());
         manual.apply(&manual.selected_skills()).unwrap();
-        let manual = Installation::load(&repo, &config).unwrap();
+        let manual = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         manual.apply(&BTreeSet::from([AUTO_COMMIT.into()])).unwrap();
         assert!(!exists(&config.join("skills/commit")).unwrap());
-        let automatic = Installation::load(&repo, &config).unwrap();
+        let automatic = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert_eq!(
             automatic.selected_skills(),
             BTreeSet::from([AUTO_COMMIT.into()])
@@ -1343,12 +1456,12 @@ mod tests {
     #[test]
     fn upgrading_adds_manual_commit_without_enabling_auto_commit() {
         let (_temp, repo, config) = fixture();
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .apply(&BTreeSet::from(["two".into()]))
             .unwrap();
         add_commit_modes(&repo);
-        let upgraded = Installation::load(&repo, &config).unwrap();
+        let upgraded = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert_eq!(upgraded.selected_skills(), BTreeSet::from(["two".into()]));
         upgraded.apply(&upgraded.selected_skills()).unwrap();
         assert!(config.join("skills/commit").is_symlink());
@@ -1361,7 +1474,7 @@ mod tests {
         for (active, next) in [(COMMIT, AUTO_COMMIT), (AUTO_COMMIT, COMMIT)] {
             let (_temp, repo, config) = fixture();
             add_commit_modes(&repo);
-            Installation::load(&repo, &config)
+            Installation::load(&repo, Tool::OpenCode, &config)
                 .unwrap()
                 .apply(&BTreeSet::from([active.into()]))
                 .unwrap();
@@ -1372,7 +1485,7 @@ mod tests {
             let custom = config.join("skills").join(active).join("SKILL.md");
             fs::write(&custom, "custom instructions").unwrap();
             assert!(
-                Installation::load(&repo, &config)
+                Installation::load(&repo, Tool::OpenCode, &config)
                     .unwrap()
                     .apply(&BTreeSet::from([next.into()]))
                     .is_err()
@@ -1386,14 +1499,14 @@ mod tests {
     #[test]
     fn upgrade_adds_commands_even_with_no_skills_selected() {
         let (_temp, repo, config) = fixture();
-        let command = repo.join("assets/commands/north.md");
+        let command = repo.join("assets/opencode/commands/north.md");
         fs::remove_file(&command).unwrap();
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .apply(&BTreeSet::new())
             .unwrap();
         fs::write(&command, "command").unwrap();
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .apply(&BTreeSet::new())
             .unwrap();
@@ -1403,7 +1516,7 @@ mod tests {
         ));
         // Tracked commands can still be removed after their source is deleted.
         fs::remove_file(command).unwrap();
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .uninstall()
             .unwrap();
@@ -1413,7 +1526,7 @@ mod tests {
     #[test]
     fn selections_follow_links_and_new_skills_start_disabled_on_rerun() {
         let (_temp, repo, config) = fixture();
-        let initial = Installation::load(&repo, &config).unwrap();
+        let initial = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert_eq!(
             initial.selected_skills(),
             BTreeSet::from(["one".into(), "two".into()])
@@ -1421,11 +1534,11 @@ mod tests {
         initial.apply(&BTreeSet::from(["two".into()])).unwrap();
         fs::create_dir_all(repo.join("assets/skills/three")).unwrap();
         fs::write(repo.join("assets/skills/three/SKILL.md"), "new").unwrap();
-        let updated = Installation::load(&repo, &config).unwrap();
+        let updated = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         assert_eq!(updated.selected_skills(), BTreeSet::from(["two".into()]));
         fs::remove_file(config.join("skills/two")).unwrap();
         assert!(
-            Installation::load(&repo, &config)
+            Installation::load(&repo, Tool::OpenCode, &config)
                 .unwrap()
                 .selected_skills()
                 .is_empty()
@@ -1435,10 +1548,10 @@ mod tests {
     #[test]
     fn uninstall_removes_tracked_assets_deleted_from_checkout() {
         let (_temp, repo, config) = fixture();
-        let initial = Installation::load(&repo, &config).unwrap();
+        let initial = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         initial.apply(&initial.skill_names()).unwrap();
         fs::remove_dir_all(repo.join("assets/skills/two")).unwrap();
-        Installation::load(&repo, &config)
+        Installation::load(&repo, Tool::OpenCode, &config)
             .unwrap()
             .uninstall()
             .unwrap();
@@ -1495,11 +1608,11 @@ mod tests {
     #[test]
     fn stale_menu_and_parallel_installer_cannot_overwrite_state() {
         let (_temp, repo, config) = fixture();
-        let stale = Installation::load(&repo, &config).unwrap();
-        let active = Installation::load(&repo, &config).unwrap();
+        let stale = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
+        let active = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         active.apply(&BTreeSet::new()).unwrap();
         assert!(stale.apply(&stale.skill_names()).is_err());
-        let current = Installation::load(&repo, &config).unwrap();
+        let current = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         fs::create_dir(config.join(".north-install.lock")).unwrap();
         assert!(current.uninstall().is_err());
         assert!(exists(&config.join("AGENTS.md")).unwrap());
@@ -1508,14 +1621,306 @@ mod tests {
     #[test]
     fn invalid_state_cannot_remove_paths_outside_config() {
         let (_temp, repo, config) = fixture();
-        let initial = Installation::load(&repo, &config).unwrap();
+        let initial = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
         initial.apply(&initial.skill_names()).unwrap();
-        let mut state = read_state(&config).unwrap().unwrap();
+        let mut state = read_state(&config, Tool::OpenCode).unwrap().unwrap();
         state.links.insert(
             PathBuf::from("skills/../../outside"),
             repo.join("assets/skills/two"),
         );
         fs::write(config.join(STATE), serde_json::to_vec(&state).unwrap()).unwrap();
-        assert!(Installation::load(&repo, &config).is_err());
+        assert!(Installation::load(&repo, Tool::OpenCode, &config).is_err());
+    }
+
+    #[test]
+    fn claude_installation_links_claude_assets_and_shared_skills() {
+        let (_temp, repo, config) = fixture();
+        add_claude(&repo);
+        add_pipeline(&repo);
+        fs::create_dir_all(&config).unwrap();
+        fs::write(config.join("CLAUDE.md"), "my rules").unwrap();
+        let canonical = repo.canonicalize().unwrap();
+        let initial = Installation::load(&repo, Tool::Claude, &config).unwrap();
+        assert_eq!(initial.tool, Tool::Claude);
+        assert_eq!(
+            initial.skill_names(),
+            Installation::load(&repo, Tool::OpenCode, &config)
+                .unwrap()
+                .skill_names()
+        );
+        initial
+            .apply(&BTreeSet::from([NORTH_PIPELINE.into(), "one".into()]))
+            .unwrap();
+        assert!(matches_link(
+            &config.join("CLAUDE.md"),
+            &canonical.join("assets/claude/instructions/core.md")
+        ));
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE-backup.md")).unwrap(),
+            "my rules"
+        );
+        assert!(!exists(&config.join("AGENTS.md")).unwrap());
+        assert!(matches_link(
+            &config.join("agents/north-worker.md"),
+            &canonical.join("assets/claude/agents/north-worker.md")
+        ));
+        assert!(matches_link(
+            &config.join("commands/north.md"),
+            &canonical.join("assets/claude/commands/north.md")
+        ));
+        assert!(matches_link(
+            &config.join("skills/north-plan"),
+            &canonical.join("assets/skills/north-plan")
+        ));
+        assert!(matches_link(
+            &config.join("skills/one"),
+            &canonical.join("assets/skills/one")
+        ));
+        // Claude Code runs the pipeline skills as slash commands; no wrappers are linked.
+        for name in PIPELINE_COMMANDS {
+            assert!(!exists(&config.join("commands").join(name)).unwrap());
+        }
+        assert!(
+            fs::read_to_string(config.join(STATE))
+                .unwrap()
+                .contains("\"tool\": \"claude\"")
+        );
+        assert!(Installation::load(&repo, Tool::OpenCode, &config).is_err());
+        let installed = Installation::load(&repo, Tool::Claude, &config).unwrap();
+        assert!(installed.installed());
+        assert_eq!(
+            installed.selected_skills(),
+            BTreeSet::from([
+                NORTH_PIPELINE.into(),
+                "one".into(),
+                "north-sources".into(),
+                "clarify-requirements".into(),
+                "research".into(),
+                "subagent-usage".into(),
+            ])
+        );
+        installed.uninstall().unwrap();
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE.md")).unwrap(),
+            "my rules"
+        );
+        assert!(!exists(&config.join("CLAUDE-backup.md")).unwrap());
+        assert!(!exists(&config.join("skills")).unwrap());
+    }
+
+    #[test]
+    fn claude_merge_imports_instructions_and_switches_modes_both_ways() {
+        let (_temp, repo, config) = fixture();
+        add_claude(&repo);
+        fs::create_dir_all(&config).unwrap();
+        fs::write(config.join("CLAUDE.md"), "# Mine\n").unwrap();
+        let import = format!(
+            "@{}",
+            repo.canonicalize()
+                .unwrap()
+                .join("assets/claude/instructions/core.md")
+                .display()
+        );
+        let merged = format!("# Mine\n{import}\n");
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .apply_with_merge(&BTreeSet::new(), true)
+            .unwrap();
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE.md")).unwrap(),
+            merged
+        );
+        assert!(!config.join("CLAUDE.md").is_symlink());
+        assert!(!exists(&config.join("CLAUDE-backup.md")).unwrap());
+        let state_before = fs::read(config.join(STATE)).unwrap();
+        let installed = Installation::load(&repo, Tool::Claude, &config).unwrap();
+        assert!(installed.merging());
+        installed.apply(&BTreeSet::new()).unwrap();
+        assert_eq!(fs::read(config.join(STATE)).unwrap(), state_before);
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE.md")).unwrap(),
+            merged
+        );
+
+        // Merge -> link keeps the import out of the backup.
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .apply_with_merge(&BTreeSet::new(), false)
+            .unwrap();
+        assert!(config.join("CLAUDE.md").is_symlink());
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE-backup.md")).unwrap(),
+            "# Mine\n"
+        );
+        // Link -> merge restores the original and appends the import.
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .apply_with_merge(&BTreeSet::new(), true)
+            .unwrap();
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE.md")).unwrap(),
+            merged
+        );
+        assert!(!exists(&config.join("CLAUDE-backup.md")).unwrap());
+        // Later user edits around the import survive uninstall.
+        fs::write(
+            config.join("CLAUDE.md"),
+            format!("# Mine\n{import}\n\nLater edit\n"),
+        )
+        .unwrap();
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .uninstall()
+            .unwrap();
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE.md")).unwrap(),
+            "# Mine\n\nLater edit\n"
+        );
+        assert!(!exists(&config.join(STATE)).unwrap());
+    }
+
+    #[test]
+    fn claude_merge_without_instructions_creates_and_removes_the_file() {
+        let (_temp, repo, config) = fixture();
+        add_claude(&repo);
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .apply_with_merge(&BTreeSet::new(), true)
+            .unwrap();
+        let content = fs::read_to_string(config.join("CLAUDE.md")).unwrap();
+        assert!(
+            content.starts_with('@') && content.ends_with("assets/claude/instructions/core.md\n")
+        );
+        // Switching to link mode removes the file North created instead of backing it up.
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .apply_with_merge(&BTreeSet::new(), false)
+            .unwrap();
+        assert!(config.join("CLAUDE.md").is_symlink());
+        assert!(!exists(&config.join("CLAUDE-backup.md")).unwrap());
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .apply_with_merge(&BTreeSet::new(), true)
+            .unwrap();
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE.md")).unwrap(),
+            content
+        );
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .uninstall()
+            .unwrap();
+        assert!(!exists(&config.join("CLAUDE.md")).unwrap());
+    }
+
+    #[test]
+    fn claude_merge_refuses_symlinked_instructions_without_changes() {
+        let (_temp, repo, config) = fixture();
+        add_claude(&repo);
+        fs::create_dir_all(&config).unwrap();
+        symlink(
+            repo.join("assets/claude/instructions/core.md"),
+            config.join("CLAUDE.md"),
+        )
+        .unwrap();
+        assert!(
+            Installation::load(&repo, Tool::Claude, &config)
+                .unwrap()
+                .apply_with_merge(&BTreeSet::new(), true)
+                .is_err()
+        );
+        assert!(!exists(&config.join(STATE)).unwrap());
+        assert!(!exists(&config.join("agents")).unwrap());
+    }
+
+    #[test]
+    fn legacy_opencode_layout_links_and_state_migrate_to_tool_assets() {
+        let (_temp, repo, config) = fixture();
+        let canonical = repo.canonicalize().unwrap();
+        // Links from the shell installer into the flat layout are adopted without state.
+        fs::create_dir_all(config.join("skills")).unwrap();
+        fs::create_dir_all(config.join("agents")).unwrap();
+        symlink(
+            canonical.join("assets/instructions/core.md"),
+            config.join("AGENTS.md"),
+        )
+        .unwrap();
+        symlink(
+            canonical.join("assets/skills/one"),
+            config.join("skills/one"),
+        )
+        .unwrap();
+        symlink(
+            canonical.join("assets/agents/north-worker.md"),
+            config.join("agents/north-worker.md"),
+        )
+        .unwrap();
+        let adopted = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
+        assert!(adopted.installed());
+        assert_eq!(adopted.selected_skills(), BTreeSet::from(["one".into()]));
+        adopted.apply(&BTreeSet::from(["two".into()])).unwrap();
+        assert!(matches_link(
+            &config.join("AGENTS.md"),
+            &canonical.join("assets/opencode/instructions/core.md")
+        ));
+        assert!(matches_link(
+            &config.join("agents/north-worker.md"),
+            &canonical.join("assets/opencode/agents/north-worker.md")
+        ));
+        assert!(!exists(&config.join("skills/one")).unwrap());
+        assert!(config.join("skills/two").is_symlink());
+
+        // A state file written before the layout change validates and relinks.
+        let mut state = read_state(&config, Tool::OpenCode).unwrap().unwrap();
+        for (relative, source) in [
+            ("AGENTS.md", "assets/instructions/core.md"),
+            ("agents/north-worker.md", "assets/agents/north-worker.md"),
+            ("commands/north.md", "assets/commands/north.md"),
+        ] {
+            let target = config.join(relative);
+            fs::remove_file(&target).unwrap();
+            symlink(canonical.join(source), &target).unwrap();
+            state.links.insert(relative.into(), canonical.join(source));
+        }
+        let mut json = serde_json::to_value(&state).unwrap();
+        json.as_object_mut().unwrap().remove("tool");
+        fs::write(
+            config.join(STATE),
+            serde_json::to_vec_pretty(&json).unwrap(),
+        )
+        .unwrap();
+        let upgraded = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
+        assert!(Installation::load(&repo, Tool::Claude, &config).is_err());
+        upgraded.apply(&upgraded.selected_skills()).unwrap();
+        for (relative, source) in [
+            ("AGENTS.md", "assets/opencode/instructions/core.md"),
+            (
+                "agents/north-worker.md",
+                "assets/opencode/agents/north-worker.md",
+            ),
+            ("commands/north.md", "assets/opencode/commands/north.md"),
+        ] {
+            assert!(matches_link(
+                &config.join(relative),
+                &canonical.join(source)
+            ));
+        }
+        let current = read_state(&config, Tool::OpenCode).unwrap().unwrap();
+        assert_eq!(current.tool, Tool::OpenCode);
+        // Claude Code never linked the flat layout, so it does not adopt those sources.
+        let mut bad = current.clone();
+        bad.tool = Tool::Claude;
+        bad.links.insert(
+            "CLAUDE.md".into(),
+            canonical.join("assets/instructions/core.md"),
+        );
+        fs::write(config.join(STATE), serde_json::to_vec(&bad).unwrap()).unwrap();
+        assert!(Installation::load(&repo, Tool::Claude, &config).is_err());
+        fs::write(config.join(STATE), serde_json::to_vec(&current).unwrap()).unwrap();
+        Installation::load(&repo, Tool::OpenCode, &config)
+            .unwrap()
+            .uninstall()
+            .unwrap();
+        assert!(!exists(&config.join("AGENTS.md")).unwrap());
     }
 }

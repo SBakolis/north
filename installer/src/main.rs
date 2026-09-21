@@ -1,18 +1,23 @@
 mod config;
 mod install;
 mod openspec;
+mod tool;
 mod ui;
 
 use anyhow::{Context, Result, bail};
 use install::Installation;
 use std::{collections::BTreeSet, env, io::IsTerminal, path::PathBuf};
+use tool::Tool;
 
 const HELP: &str = "North installer
 
-Usage: ./install.sh [--all | --skills NAME,NAME] [--openspec] [--merge]
-       ./install.sh --uninstall
+Usage: ./install.sh [--tool opencode|claude] [--all | --skills NAME,NAME] [--openspec] [--merge]
+       ./install.sh [--tool opencode|claude] --uninstall
 
-With no options, open the categorized installer checklist.
+With no options, choose a tool, then open its categorized installer checklist.
+  --tool NAME    Install for opencode (${XDG_CONFIG_HOME:-$HOME/.config}/opencode)
+                 or claude, meaning Claude Code (${CLAUDE_CONFIG_DIR:-$HOME/.claude})
+                 Unattended options default to opencode
   --all          Enable all skills, Auto commit, and North pipeline
   --skills LIST  Select skills and workflows; include auto-commit for Auto commit
                  Otherwise commit is linked (use '' for only commit)
@@ -20,13 +25,14 @@ With no options, open the categorized installer checklist.
                  Required skill dependencies are included automatically
   --openspec     Install OpenSpec globally with npm if missing (Node.js 20.19.0+)
                  Alone, keeps the current skill selection (all on first install)
-  --merge        Merge North into opencode.json/jsonc; keep existing instructions
+  --merge        OpenCode: merge North into opencode.json/jsonc; keep AGENTS.md
+                 Claude Code: keep CLAUDE.md and add an @import of North's rules
                  Alone, keeps the current skill selection (all on first install)
   --uninstall    Remove North's links/config additions and restore saved instructions
   --help         Show this help
 
 Interactive: Up/Down or j/k to move, Space to toggle, Enter to apply,
-u to uninstall, Esc/q to quit without changes.";
+u to uninstall, Esc to choose another tool, q to quit without changes.";
 
 fn main() {
     if let Err(error) = run() {
@@ -35,9 +41,14 @@ fn main() {
     }
 }
 
+fn load(repo: &std::path::Path, tool: Tool) -> Result<Installation> {
+    Installation::load(repo, tool, &tool.config_dir()?)
+}
+
 fn run() -> Result<()> {
     let mut args = env::args().skip(1);
     let mut repo = None;
+    let mut tool = None;
     let mut action = None;
     let mut openspec = false;
     let mut merge = false;
@@ -49,6 +60,13 @@ fn run() -> Result<()> {
             }
             "--repo" if repo.is_none() => {
                 repo = Some(PathBuf::from(args.next().context("--repo needs a path")?));
+            }
+            "--tool" if tool.is_none() => {
+                let name = args.next().context("--tool needs opencode or claude")?;
+                tool = Some(
+                    Tool::parse(&name)
+                        .with_context(|| format!("Unknown tool {name}; use opencode or claude"))?,
+                );
             }
             "--openspec" if !openspec => openspec = true,
             "--merge" if !merge => merge = true,
@@ -86,38 +104,66 @@ fn run() -> Result<()> {
     }
 
     let repo = repo.context("Run this installer through install.sh")?;
-    let base = env::var_os("XDG_CONFIG_HOME")
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
-        .context("Set HOME or XDG_CONFIG_HOME")?;
-    if !base.is_absolute() {
-        bail!("XDG_CONFIG_HOME (or HOME) must be an absolute path");
-    }
-    let installation = Installation::load(&repo, &base.join("opencode"))?;
-    if openspec || merge || matches!(action, Some(ui::Action::Apply { .. })) {
-        action = Some(match action {
+    let unattended = openspec || merge || action.is_some();
+    let (installation, action) = if unattended {
+        let installation = load(&repo, tool.unwrap_or_default())?;
+        let action = match action {
             Some(ui::Action::Apply { skills, .. }) => ui::Action::Apply {
                 skills,
                 openspec,
                 merge: merge || installation.merging(),
             },
+            Some(ui::Action::Uninstall) => ui::Action::Uninstall,
             _ => ui::Action::Apply {
                 skills: Some(installation.selected_skills()),
                 openspec,
                 merge: merge || installation.merging(),
             },
-        });
-    }
-    let action = match action {
-        Some(action) => action,
-        None => {
-            if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-                bail!(
-                    "The interactive installer needs a terminal. Use --all, --skills LIST, --openspec, --merge, or --uninstall for unattended use."
-                );
-            }
-            ratatui::run(|terminal| ui::run(terminal, &installation))?
+        };
+        (installation, action)
+    } else {
+        if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+            bail!(
+                "The interactive installer needs a terminal. Use --all, --skills LIST, --openspec, --merge, or --uninstall for unattended use."
+            );
+        }
+        let tools: Vec<Tool> = match tool {
+            Some(tool) => vec![tool],
+            None => Tool::ALL.to_vec(),
+        };
+        let mut candidates: Vec<_> = tools
+            .into_iter()
+            .map(|tool| ui::Candidate {
+                tool,
+                installation: load(&repo, tool).map_err(|error| format!("{error:#}")),
+            })
+            .collect();
+        if let [single] = candidates.as_slice()
+            && let Err(error) = &single.installation
+        {
+            bail!("{error}");
+        }
+        if candidates
+            .iter()
+            .all(|candidate| candidate.installation.is_err())
+        {
+            let problems: Vec<_> = candidates
+                .iter()
+                .filter_map(|candidate| {
+                    candidate
+                        .installation
+                        .as_ref()
+                        .err()
+                        .map(|error| format!("{}: {error}", candidate.tool.label()))
+                })
+                .collect();
+            bail!("No tool can be managed:\n{}", problems.join("\n"));
+        }
+        let (index, action) = ratatui::run(|terminal| ui::run(terminal, &candidates))?;
+        let candidate = candidates.swap_remove(index);
+        match candidate.installation {
+            Ok(installation) => (installation, action),
+            Err(_) => return finish_cancelled(),
         }
     };
     match action {
@@ -130,7 +176,8 @@ fn run() -> Result<()> {
             let resolved = installation.resolved_skills(&selected)?;
             installation.apply_with_merge(&selected, merge)?;
             println!(
-                "North installed in {} with {} enabled skills. Rerun ./install.sh to manage or uninstall it.",
+                "North installed for {} in {} with {} enabled skills. Rerun ./install.sh to manage or uninstall it.",
+                installation.tool.label(),
                 installation.config.display(),
                 resolved.len()
             );
@@ -146,10 +193,18 @@ fn run() -> Result<()> {
         ui::Action::Uninstall => {
             installation.uninstall()?;
             println!(
-                "North removed, including its merged config additions. Any saved AGENTS-backup.md has been restored to AGENTS.md."
+                "North removed from {}, including its merged config additions. Any saved {} has been restored to {}.",
+                installation.tool.label(),
+                installation.tool.backup(),
+                installation.tool.instructions()
             );
         }
-        ui::Action::Cancel => println!("No changes made."),
+        ui::Action::Cancel => return finish_cancelled(),
     }
+    Ok(())
+}
+
+fn finish_cancelled() -> Result<()> {
+    println!("No changes made.");
     Ok(())
 }

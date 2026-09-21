@@ -8,9 +8,9 @@
 
 ![North banner](assets/north.png)
 
-North is a small set of instructions, agent definitions, and skills for OpenCode.
-OpenCode provides subagent execution; the primary agent coordinates planning,
-implementation, and review.
+North is a small set of instructions, agent definitions, and skills for OpenCode
+and Claude Code. The tool provides subagent execution; the primary agent
+coordinates planning, implementation, and review.
 
 ## Install
 
@@ -21,29 +21,41 @@ Clone this repository to a permanent location, then run:
 ```
 
 The script builds and opens a small Ratatui installer. It requires a POSIX shell
-and Rust/Cargo (Rust 1.88+); the first build downloads its dependencies. Use
-Up/Down and Space to choose options in the **Workflow**, **Skills**, **OpenSpec**,
-and **Installation** categories, then Enter to install shared instructions,
-commands, four subagents, and the selected skills into
-`${XDG_CONFIG_HOME:-$HOME/.config}/opencode`.
+and Rust/Cargo (Rust 1.88+); the first build downloads its dependencies. The
+installer first asks which tool to install for, then shows that tool's checklist.
+Use Up/Down and Space to choose options in the **Workflow**, **Skills**,
+**OpenSpec**, and **Installation** categories, then Enter to install shared
+instructions, commands, four subagents, and the selected skills:
+
+| Tool | Installs into | Instructions file |
+| --- | --- | --- |
+| OpenCode | `${XDG_CONFIG_HOME:-$HOME/.config}/opencode` | `AGENTS.md` |
+| Claude Code | `${CLAUDE_CONFIG_DIR:-$HOME/.claude}` | `CLAUDE.md` |
+
+Each tool has an independent installation; run the installer again and pick the
+other tool to install North for both. Unattended options such as `--all` default
+to OpenCode; add `--tool claude` for Claude Code.
 
 Select the optional **OpenSpec CLI** checkbox to install OpenSpec if it is missing,
 or run `./install.sh --all --openspec`. The installer checks for an existing CLI
 first; installation uses npm and requires Node.js 20.19.0+.
 
-Select **Merge installations** (or run `./install.sh --merge`) to merge North's
-configuration into existing `opencode.json` / `opencode.jsonc` files and keep your
-`AGENTS.md` active. Nested settings are combined, arrays such as `plugin` are
-extended without duplicate entries, and existing settings and JSONC comments are preserved.
+Select **Merge installations** (or run `./install.sh --merge`) to keep your own
+instructions active. For OpenCode, North's configuration is merged into existing
+`opencode.json` / `opencode.jsonc` files: nested settings are combined, arrays
+such as `plugin` are extended without duplicate entries, and existing settings
+and JSONC comments are preserved. For Claude Code, one `@import` line pointing at
+North's instructions is appended to your `CLAUDE.md`.
 
-Without merging, your existing `AGENTS.md` is saved as `AGENTS-backup.md`. Run `./install.sh` again
-to enable or disable skills, or press `u` to uninstall North and restore that
-backup. Keep the checkout in place because the installed links point into it.
+Without merging, your existing `AGENTS.md` or `CLAUDE.md` is saved as
+`AGENTS-backup.md` or `CLAUDE-backup.md`. Run `./install.sh` again to enable or
+disable skills, or press `u` to uninstall North and restore that backup. Keep the
+checkout in place because the installed links point into it.
 
-Start a new OpenCode session in your project and run `/north` to create its
-`north/` directory. If the OpenSpec CLI is installed and the project does not
-already have OpenSpec, the command asks whether to initialize it with OpenCode
-support. Existing North contents and OpenSpec setup are preserved.
+Start a new OpenCode or Claude Code session in your project and run `/north` to
+create its `north/` directory. If the OpenSpec CLI is installed and the project
+does not already have OpenSpec, the command asks whether to initialize it with
+support for the current tool. Existing North contents and OpenSpec setup are preserved.
 
 Enable **North pipeline** in the installer's **Workflow** category, then run:
 
@@ -63,11 +75,9 @@ future tasks. Each command suggests the next command; after saving, start the
 next feature with `/north-plan`. Execute and save also accept a plan path.
 
 You can still ask for a change normally. The shared instructions guide delegation
-for larger tasks. You can also invoke an agent explicitly, for example:
-
-```text
-@north-planner plan the login change
-```
+for larger tasks. You can also invoke an agent explicitly, for example
+`@north-planner plan the login change` in OpenCode, or "use the north-planner
+subagent to plan the login change" in Claude Code.
 
 See [installation](docs/installation.md) for existing configurations, updates,
 and removal, and [architecture](docs/architecture.md) for the workflow.
@@ -75,11 +85,13 @@ and removal, and [architecture](docs/architecture.md) for the workflow.
 See the [execution plan format](docs/plan-format.md) for linked task files,
 statuses, and resuming work. Plans and memories live in the working project,
 honoring its configured North directory. Coordination runs through agent
-instructions and OpenCode's native subagents.
+instructions and the tool's native subagents.
 
 ## Skills
 
-OpenCode discovers skill descriptions and loads matching guidance on demand.
+Skills use the shared Agent Skills format, so one `assets/skills/` catalog serves
+both tools. Each tool discovers skill descriptions and loads matching guidance
+on demand; Claude Code additionally exposes installed skills as slash commands.
 
 Implementation pipeline:
 
@@ -96,8 +108,10 @@ Implementation pipeline:
 
 The optional **North pipeline** toggle installs these five skills, their
 prerequisites, and `/north-plan`, `/north-execute`, and `/north-save` together.
-They do not appear as individual checklist options. `/north` is always installed.
-Disabling the pipeline preserves project plans and memories.
+OpenCode gets Markdown command wrappers for those three commands; in Claude Code
+the pipeline skills themselves answer to those slash commands. They do not appear
+as individual checklist options. `/north` is always installed. Disabling the
+pipeline preserves project plans and memories.
 
 Engineering methods:
 

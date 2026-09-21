@@ -9,7 +9,8 @@ Prefer subagents for bounded research, implementation, and independent review
 when delegation makes meaningful progress possible alongside the primary agent's
 work. Look for independent tasks before doing a substantial change serially.
 Handle trivial edits directly; do not split tightly coupled work merely to create
-parallel activity. Use OpenCode's native Task tool and North's existing agents.
+parallel activity. Use the native subagent tool (Task in OpenCode, Agent in
+Claude Code) and North's existing agents.
 The primary agent owns coordination, Git operations, and final integration;
 workers do not spawn further workers or manage branches themselves.
 
@@ -24,7 +25,7 @@ layer may run.
 For standalone delegation, dispatch independent work after its prerequisites
 are accepted; this skill does not start a pipeline phase.
 
-Use concurrent native Task calls within the coordinator's limit (default 2).
+Use concurrent native subagent calls within the coordinator's limit (default 2).
 Serialize assignments with conflicting reads, writes, generated outputs,
 lockfiles, or test resources, including primary-agent edits. Worktrees isolate
 file writes but do not remove semantic or external-resource conflicts.

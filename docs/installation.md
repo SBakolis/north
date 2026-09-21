@@ -1,15 +1,35 @@
 # Installation
 
-Install OpenCode separately and clone North to a permanent location. Install
-Rust and Cargo (Rust 1.88 or newer) from [rustup](https://rustup.rs), then run
-`./install.sh` from the checkout, or invoke its absolute path from any directory.
-The POSIX shell script builds and launches a small Ratatui installer. The first
-build needs internet access to download the locked Rust dependencies; subsequent
-runs reuse the build. No North daemon or OpenCode plugin is installed.
+Install OpenCode or Claude Code separately and clone North to a permanent
+location. Install Rust and Cargo (Rust 1.88 or newer) from [rustup](https://rustup.rs),
+then run `./install.sh` from the checkout, or invoke its absolute path from any
+directory. The POSIX shell script builds and launches a small Ratatui installer.
+The first build needs internet access to download the locked Rust dependencies;
+subsequent runs reuse the build. No North daemon, OpenCode plugin, or Claude Code
+plugin is installed.
+
+## Choose a tool
+
+The installer first asks which tool to install North for. Each row shows the
+tool's configuration directory and whether North is already installed there:
+
+| Tool | Configuration directory | Instructions file | Backup name |
+| --- | --- | --- | --- |
+| OpenCode | `${XDG_CONFIG_HOME:-$HOME/.config}/opencode` | `AGENTS.md` | `AGENTS-backup.md` |
+| Claude Code | `${CLAUDE_CONFIG_DIR:-$HOME/.claude}` | `CLAUDE.md` | `CLAUDE-backup.md` |
+
+Use Up/Down (or j/k) and Enter to continue with a tool, or q/Esc to quit. A tool
+whose configuration directory cannot be managed (for example, a file where a
+directory is expected) shows the problem and cannot be selected until it is fixed.
+Installations are independent: each tool has its own links, skill selection, and
+`.north-installation.json`. Run the installer again and choose the other tool to
+install North for both. Pass `--tool opencode` or `--tool claude` to skip the
+question; unattended options default to OpenCode.
 
 ## Choose options
 
-The installer separates its options into four categories, in this order:
+After choosing a tool, the installer separates its options into four categories,
+in this order:
 
 | Category | Options |
 | --- | --- |
@@ -20,19 +40,22 @@ The installer separates its options into four categories, in this order:
 
 Use Up/Down (or j/k) to move and Space to toggle an option. `a` and `n` select
 or clear only the regular **Skills** category, preserving the **Workflow**,
-**OpenSpec**, and **Installation** choices. Press Enter to apply or q/Esc to leave
-unchanged.
+**OpenSpec**, and **Installation** choices. Press Enter to apply, Esc to return
+to the tool question, or q to leave unchanged.
 The checklist scrolls with the selection. On first installation, regular skills,
 **Auto commit**, and **North pipeline** start checked; **OpenSpec** and
-**Installation** options start unchecked. Shared instructions, `/north`, and the four North agents are always
-included. See the [skill catalog](../README.md#skills) for each method's purpose.
+**Installation** options start unchecked. Shared instructions, `/north`, and the
+four North agents are always included. See the [skill catalog](../README.md#skills)
+for each method's purpose. The skill catalog is the same for both tools.
 
 **North pipeline** installs `/north-plan`, `/north-execute`, and `/north-save`
 together with `north-plan`, `north-explore`, `north-execute`, `north-save`, and
 `invoke-memory`. These five skills do not appear as individual checklist rows.
 The group also requires `clarify-requirements`, `research`, `subagent-usage`, and `north-sources`;
 the checklist marks automatically included skills as required. These shared
-skills remain individually selectable when the pipeline is off.
+skills remain individually selectable when the pipeline is off. For OpenCode the
+three commands are Markdown wrappers in `commands/`; for Claude Code the pipeline
+skills answer to those slash commands directly, so no wrappers are linked.
 
 `north-sources` supplies shared storage conventions and the plan contract. The
 installer also includes it for standalone research, clarification, delegation,
@@ -71,40 +94,44 @@ when you uninstall North. If OpenSpec setup fails, the installer exits with an
 error and explains that North's changes were saved; fix the reported issue and
 retry with `./install.sh --openspec`.
 
-The installer creates symlinks under
-`${XDG_CONFIG_HOME:-$HOME/.config}/opencode`:
+The installer creates symlinks in the chosen tool's configuration directory.
+Skills are shared between tools; instructions, agents, and commands come from
+the tool's own asset directory:
 
 | Destination | Repository source |
 | --- | --- |
-| `AGENTS.md` | `assets/instructions/core.md` |
-| `commands/north.md` | `assets/commands/north.md` |
-| `commands/north-plan.md` (North pipeline enabled) | `assets/commands/north-plan.md` |
-| `commands/north-execute.md` (North pipeline enabled) | `assets/commands/north-execute.md` |
-| `commands/north-save.md` (North pipeline enabled) | `assets/commands/north-save.md` |
-| `agents/north-planner.md` | `assets/agents/north-planner.md` |
-| `agents/north-worker.md` | `assets/agents/north-worker.md` |
-| `agents/north-verifier.md` | `assets/agents/north-verifier.md` |
-| `agents/north-conflict-resolver.md` | `assets/agents/north-conflict-resolver.md` |
+| `AGENTS.md` (OpenCode) | `assets/opencode/instructions/core.md` |
+| `CLAUDE.md` (Claude Code) | `assets/claude/instructions/core.md` |
+| `commands/north.md` | `assets/<tool>/commands/north.md` |
+| `commands/north-plan.md` (OpenCode, North pipeline enabled) | `assets/opencode/commands/north-plan.md` |
+| `commands/north-execute.md` (OpenCode, North pipeline enabled) | `assets/opencode/commands/north-execute.md` |
+| `commands/north-save.md` (OpenCode, North pipeline enabled) | `assets/opencode/commands/north-save.md` |
+| `agents/north-planner.md` | `assets/<tool>/agents/north-planner.md` |
+| `agents/north-worker.md` | `assets/<tool>/agents/north-worker.md` |
+| `agents/north-verifier.md` | `assets/<tool>/agents/north-verifier.md` |
+| `agents/north-conflict-resolver.md` | `assets/<tool>/agents/north-conflict-resolver.md` |
 | `skills/<name>` (each enabled skill in the catalog) | `assets/skills/<name>/` |
 | `skills/auto-commit` (Auto commit checked) | `assets/skills/auto-commit/` |
 | `skills/commit` (Auto commit unchecked) | `assets/skills/commit/` |
 
-With **Merge installations** enabled, `AGENTS.md` stays in place; North's shared
-instructions are loaded through the configuration's `instructions` array instead.
+`<tool>` is `opencode` or `claude`. With **Merge installations** enabled, the
+instructions file stays in place; North's shared instructions are loaded through
+OpenCode's `instructions` array or a Claude Code `@import` line instead.
 
 Each skill directory contains a `SKILL.md`. The installer discovers bundled
 skills automatically and links each enabled directory separately. Workflow
 options group the pipeline skills and select one of the two commit modes. Unrelated
 skills remain intact. Keep the checkout because the links point directly into it.
-Start a new OpenCode session to load the installed instructions and skills.
+Start a new session of the tool to load the installed instructions and skills.
 
 ## Scaffold a project
 
-Run `/north` in an OpenCode session for the project. It creates the project's
+Run `/north` in a session for the project. It creates the project's
 `north/` directory without changing existing contents. When `openspec --version`
 succeeds and the project has no `openspec/` directory, it asks whether to add
-OpenSpec with OpenCode support. Accepting runs `openspec init --tools opencode`
-from the project root; declining leaves only the North directory. A missing CLI
+OpenSpec with support for the current tool. Accepting runs
+`openspec init --tools opencode` or `openspec init --tools claude` from the
+project root; declining leaves only the North directory. A missing CLI
 is skipped, and an existing OpenSpec directory is left untouched.
 
 Rerun the installer after updating North to register the commands in an existing
@@ -116,10 +143,11 @@ installation. `/north` is always included; the three pipeline commands require
 Enable **North pipeline** in **Workflow**, or select it from the command line:
 
 ```sh
-./install.sh --skills north-pipeline
+./install.sh --skills north-pipeline                # OpenCode
+./install.sh --tool claude --skills north-pipeline  # Claude Code
 ```
 
-In the working project's OpenCode session, run `/north-plan <your feature prompt>`.
+In the working project's session, run `/north-plan <your feature prompt>`.
 The agent asks relevant requirements questions, checks existing memories, and
 researches similar implementations and useful libraries. It creates linked
 Markdown files under `north/plans/<feature-slug>/` and suggests
@@ -137,87 +165,106 @@ plan, including plans created with the earlier single-file format.
 ## Existing instructions and conflicts
 
 The optional **Merge installations** checkbox starts unchecked and remembers your
-choice on later runs. Enable it to combine North with an existing OpenCode setup
-in `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`. The installer detects `opencode.json`
+choice on later runs. Enable it to keep your own global instructions active
+alongside North's.
+
+For OpenCode, merge mode combines North with an existing setup in
+`${XDG_CONFIG_HOME:-$HOME/.config}/opencode`. The installer detects `opencode.json`
 and `opencode.jsonc`, merges into each existing file, or creates `opencode.json`
 if neither exists. It preserves JSONC comments and unrelated formatting.
+North's defaults come from `assets/opencode/opencode.json`; the installer also
+adds the absolute path to North's shared instructions. Objects merge recursively,
+missing settings are added, and arrays (including `plugin` and `instructions`)
+are extended with unique entries. Existing scalar values win conflicts. This
+supports future bundled plugins by adding their entries to the `plugin` array in
+North's config; no plugins are bundled yet. OpenCode loads configured plugins
+itself. Merge mode leaves your `AGENTS.md` active alongside North's instructions,
+as described in [OpenCode's custom instructions documentation](https://opencode.ai/docs/rules/#custom-instructions).
 
-North's defaults come from `assets/opencode.json`; the installer also adds the
-absolute path to North's shared instructions. Objects merge recursively, missing
-settings are added, and arrays (including `plugin` and `instructions`) are extended
-with unique entries. Existing scalar values win conflicts. This supports future
-bundled plugins by adding their entries to the `plugin` array in North's config;
-no plugins are bundled yet. OpenCode loads configured plugins itself.
+For Claude Code, merge mode appends one line to `CLAUDE.md` in
+`${CLAUDE_CONFIG_DIR:-$HOME/.claude}`, an `@import` of the absolute path to
+`assets/claude/instructions/core.md`, following
+[Claude Code's memory imports](https://code.claude.com/docs/en/memory#import-additional-files).
+If `CLAUDE.md` does not exist, it is created with only that line. Everything else
+in the file is left as it is, and a line that is already present is not added
+twice. Claude Code parses the import as a path, so keep the checkout at a path
+without spaces when using this mode. Merge mode requires `CLAUDE.md` to be a
+regular file; a symlink other than North's own link is refused.
 
-Merge mode leaves your `AGENTS.md` active alongside North's instructions, as
-described in [OpenCode's custom instructions documentation](https://opencode.ai/docs/rules/#custom-instructions).
-Switching an existing North installation to merge mode restores its saved
-`AGENTS-backup.md`. Unchecking merge removes North's config additions and switches
-back to the instruction link and backup behavior described below.
+Switching an existing North installation to merge mode restores its saved backup
+first, so the import or configuration change applies to your original
+instructions. Unchecking merge removes North's config additions and switches
+back to the instruction link and backup behavior described below; a `CLAUDE.md`
+that North created solely for the import is removed rather than backed up.
 
 Configuration changes are part of the installation transaction. Invalid JSON/JSONC,
 duplicate object keys, incompatible `instructions`/`plugin` types, and configuration
 symlinks or directory conflicts stop the merge before changes are applied. The
 installer saves original and merged text in `.north-installation.json` with
 owner-only permissions. Keep this state file for updates and uninstall; it can
-contain private settings from your configuration.
+contain private settings or instructions from your configuration.
 
 Reruns update North's additions without accumulating duplicates. Uninstall restores
-an untouched config exactly, including comments and formatting, or deletes a config
+an untouched file exactly, including comments and formatting, or deletes a file
 created solely for North. If you edit it afterward, uninstall removes only matching
-North additions and retains your later settings and plugins. Comment-only edits
-also retain the file. Existing agent, command, and skill filename conflicts still
-follow the checks below.
+North additions and retains your later settings, plugins, or instructions.
+Comment-only edits also retain the file. Existing agent, command, and skill
+filename conflicts still follow the checks below.
 
-Without merge mode, before linking North's instructions, the installer renames an existing
-`AGENTS.md` to `AGENTS-backup.md` in the same OpenCode configuration directory.
-This preserves the original file, or the original symlink including its target.
-North's instructions are active while installed; the backup is retained for
-uninstall and is never overwritten on reruns. If no original `AGENTS.md` exists,
-no backup is needed.
+Without merge mode, before linking North's instructions, the installer renames an
+existing `AGENTS.md` or `CLAUDE.md` to `AGENTS-backup.md` or `CLAUDE-backup.md`
+in the same configuration directory. This preserves the original file, or the
+original symlink including its target. North's instructions are active while
+installed; the backup is retained for uninstall and is never overwritten on
+reruns. If no original instructions file exists, no backup is needed.
 
 All link destinations are checked before modifying instructions or skills.
 The installer refuses conflicts at enabled command, agent, and skill destinations,
 including dangling links. Disable the relevant skill or workflow option to leave
 it alone, or move the conflicting file aside yourself. An existing untracked
-`AGENTS-backup.md` also blocks installation so it cannot be overwritten.
-Symlinks in place of the OpenCode, commands, agents, or skills directory are refused.
+backup file also blocks installation so it cannot be overwritten.
+Symlinks in place of the configuration, commands, agents, or skills directory are refused.
 An untracked or user-replaced commit skill also blocks switching to the opposite
 mode, so both modes cannot accidentally remain active. Move that conflict aside
 before switching; the installer will not delete it.
 
-The installer records link ownership and whether it created a backup in
-`.north-installation.json`. Keep this file and `AGENTS-backup.md` until uninstall.
-A lock prevents simultaneous installers from changing the same installation.
-Detected failures roll back completed configuration, link, and backup changes. If a process is
-forcibly terminated, inspect the links, backup, and state before retrying; remove
-a stale `.north-install.lock` directory only when no installer is running.
+The installer records the tool, link ownership, and whether it created a backup
+in `.north-installation.json`. Keep this file and the backup until uninstall. A
+state file written for one tool is refused by the other, so the directories
+cannot be mixed up. A lock prevents simultaneous installers from changing the
+same installation. Detected failures roll back completed configuration, link,
+and backup changes. If a process is forcibly terminated, inspect the links,
+backup, and state before retrying; remove a stale `.north-install.lock`
+directory only when no installer is running.
 
 ## Change skills, update, and uninstall
 
-Run `./install.sh` again to open the checklist with the saved workflow and skill
-choices. Toggle options and press Enter to link or unlink them. Updating this
-checkout changes the contents of linked assets immediately. Newly added regular
-skills start unchecked on an existing installation unless required by the enabled
-pipeline; rerun the installer to enable them.
+Run `./install.sh` again, choose the tool, and the checklist opens with the saved
+workflow and skill choices. Toggle options and press Enter to link or unlink
+them. Updating this checkout changes the contents of linked assets immediately.
+Newly added regular skills start unchecked on an existing installation unless
+required by the enabled pipeline; rerun the installer to enable them.
 If the checkout moves, run its `install.sh` from the new location to update links
 using the saved installation state.
 
 Press `u` in the installed menu, then `y`, to uninstall. North removes its matching
-instruction, command, agent, and skill links, restores `AGENTS-backup.md` to `AGENTS.md`
-when present, and removes its installation state. With no original instructions,
-`AGENTS.md` is simply removed. The checkout, project plans and memories, unrelated
-skills, user replacements for agent/skill links, and other OpenCode configuration remain.
-You can delete the checkout yourself afterward.
+instruction, command, agent, and skill links, restores the backup to `AGENTS.md`
+or `CLAUDE.md` when present, and removes its installation state. With no
+original instructions, the instructions file is simply removed. The checkout,
+project plans and memories, unrelated skills, user replacements for agent/skill
+links, the other tool's installation, and other configuration remain. You can
+delete the checkout yourself afterward.
 
-If you replaced North's `AGENTS.md` link with your own file, move that file aside
+If you replaced North's instructions link with your own file, move that file aside
 before uninstalling so North can restore the original backup. A missing saved
 backup also blocks changes until you restore it; the installer will not silently
 claim to have restored instructions it cannot find.
 
 Matching links from the previous shell-only installer are recognized without a
-state file. That installer did not replace existing instructions or create a
-backup, so there are no original instructions to restore for those installations.
+state file, and OpenCode installations that linked the earlier flat `assets/`
+layout are moved to `assets/opencode/` on the next apply. That installer did not
+replace existing instructions or create a backup, so there are no original
+instructions to restore for those installations.
 For installations made with the older North CLI, use that version's uninstall
 procedure first, retaining any user instructions and unfinished work.
 
@@ -228,9 +275,11 @@ select an action using the same installation logic:
 
 ```sh
 ./install.sh --all                         # All skills, Auto commit, and North pipeline
+./install.sh --tool claude --all           # The same for Claude Code
 ./install.sh --all --openspec              # Also install OpenSpec if missing
 ./install.sh --openspec                    # Keep skill selection; ensure OpenSpec
 ./install.sh --merge                       # Keep skills; merge existing OpenCode config
+./install.sh --tool claude --merge         # Keep skills; import North into CLAUDE.md
 ./install.sh --all --merge --openspec       # Merge config and also ensure OpenSpec
 ./install.sh --skills explain-code,unity-ui # These skills plus confirmation-based commit
 ./install.sh --skills explain-code,auto-commit # Explain code with Auto commit enabled
@@ -238,10 +287,13 @@ select an action using the same installation logic:
 ./install.sh --skills north-pipeline,auto-commit # Pipeline with Auto commit
 ./install.sh --skills ''                   # Only commit; keep /north, instructions, agents
 ./install.sh --uninstall                   # Remove North and restore the backup
+./install.sh --tool claude --uninstall     # Remove the Claude Code installation
 ./install.sh --help
 ```
 
-`--openspec` and `--merge` can be combined with each other, `--all`, or `--skills`,
+`--tool` accepts `opencode` or `claude` and combines with every other option.
+Without it, unattended options act on OpenCode, and the interactive installer
+asks. `--openspec` and `--merge` can be combined with each other, `--all`, or `--skills`,
 but not `--uninstall`. Either used alone preserves the current skill selection
 (all skills on first install). Once enabled, merge mode persists for unattended
 updates; uncheck it in the TUI to return to the default installation mode.
@@ -254,7 +306,10 @@ as aliases that enable the full group. `--all` enables all regular skills,
 Auto commit, and North pipeline; it does not enable merge mode on first
 installation or install OpenSpec.
 
-Without merge mode, the installer leaves OpenCode JSON configuration untouched. OpenCode documents
-[agent discovery](https://opencode.ai/docs/agents/),
+Without merge mode, the installer leaves the tool's own configuration untouched.
+OpenCode documents [agent discovery](https://opencode.ai/docs/agents/),
 [skills](https://opencode.ai/docs/skills/), and
-[global instructions](https://opencode.ai/docs/rules/).
+[global instructions](https://opencode.ai/docs/rules/). Claude Code documents
+[subagents](https://code.claude.com/docs/en/sub-agents),
+[skills](https://code.claude.com/docs/en/skills), and
+[memory files](https://code.claude.com/docs/en/memory).

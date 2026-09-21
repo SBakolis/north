@@ -7,12 +7,46 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MergeKind {
+    /// OpenCode JSON/JSONC settings combined with North's bundled defaults.
+    #[default]
+    Json,
+    /// A Markdown instructions file that receives one `@path` import line.
+    Import,
+}
+
 // Save both versions so uninstall can undo our additions without losing later edits.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConfigMerge {
     pub file: String,
     pub original: Option<String>,
     pub applied: String,
+    #[serde(default, skip_serializing_if = "is_json")]
+    pub kind: MergeKind,
+}
+
+fn is_json(kind: &MergeKind) -> bool {
+    *kind == MergeKind::Json
+}
+
+fn has_line(text: &str, line: &str) -> bool {
+    text.lines().any(|current| current.trim_end() == line)
+}
+
+// Drop the first matching line; later duplicates belong to the user.
+fn without_line(text: &str, line: &str) -> String {
+    let mut removed = false;
+    let mut result = String::with_capacity(text.len());
+    for current in text.split_inclusive('\n') {
+        if !removed && current.trim_end_matches(['\n', '\r']).trim_end() == line {
+            removed = true;
+            continue;
+        }
+        result.push_str(current);
+    }
+    result
 }
 
 fn parse(text: &str) -> Result<(CstRootNode, Value)> {
@@ -194,7 +228,36 @@ impl ConfigMerge {
             file,
             original,
             applied: root.to_string(),
+            kind: MergeKind::Json,
         })
+    }
+
+    /// Append an import line to Markdown instructions unless it is already present.
+    pub fn import(file: String, original: Option<String>, line: &str) -> Result<Self> {
+        ensure!(
+            !line.is_empty() && !line.contains(['\n', '\r']),
+            "North import line must be a single line"
+        );
+        let applied = match original.as_deref() {
+            Some(text) if has_line(text, line) => text.to_owned(),
+            Some(text) if text.is_empty() || text.ends_with('\n') => format!("{text}{line}\n"),
+            Some(text) => format!("{text}\n{line}\n"),
+            None => format!("{line}\n"),
+        };
+        Ok(Self {
+            file,
+            original,
+            applied,
+            kind: MergeKind::Import,
+        })
+    }
+
+    fn import_line(&self) -> Option<&str> {
+        let original = self.original.as_deref().unwrap_or("");
+        self.applied
+            .lines()
+            .find(|line| !has_line(original, line.trim_end()))
+            .map(str::trim_end)
     }
 
     pub fn remove(&self, current: Option<&str>) -> Result<Option<String>> {
@@ -203,6 +266,12 @@ impl ConfigMerge {
         };
         if current == self.applied {
             return Ok(self.original.clone());
+        }
+        if self.kind == MergeKind::Import {
+            return Ok(Some(match self.import_line() {
+                Some(line) => without_line(current, line),
+                None => current.to_owned(),
+            }));
         }
         let (root, value) = parse(current)?;
         let original = parse(self.original.as_deref().unwrap_or("{}"))?.1;
@@ -270,6 +339,57 @@ mod tests {
             parse(&removed).unwrap().1,
             json!({"plugin":["user-plugin"],"mcp":{"user":{"enabled":false}}})
         );
+    }
+
+    #[test]
+    fn import_lines_append_once_and_are_removed_without_losing_later_edits() {
+        let line = "@/north checkout/assets/claude/instructions/core.md";
+        let merged = ConfigMerge::import("CLAUDE.md".into(), None, line).unwrap();
+        assert_eq!(merged.applied, format!("{line}\n"));
+        assert_eq!(merged.remove(Some(&merged.applied)).unwrap(), None);
+        assert_eq!(
+            merged.remove(Some("# Mine\n")).unwrap().as_deref(),
+            Some("# Mine\n")
+        );
+        assert_eq!(
+            merged
+                .remove(Some(&format!("# Later\n{line}\n\n- keep\n")))
+                .unwrap()
+                .as_deref(),
+            Some("# Later\n\n- keep\n")
+        );
+        let edited = format!("# Later\n{line}   \n{line}\n");
+        assert_eq!(
+            merged.remove(Some(&edited)).unwrap().as_deref(),
+            Some(&*format!("# Later\n{line}\n"))
+        );
+        assert!(
+            serde_json::to_string(&merged)
+                .unwrap()
+                .contains("\"kind\":\"import\"")
+        );
+
+        let original = "# My rules\nKeep tests green";
+        let merged = ConfigMerge::import("CLAUDE.md".into(), Some(original.into()), line).unwrap();
+        assert_eq!(merged.applied, format!("{original}\n{line}\n"));
+        assert_eq!(
+            merged.remove(Some(&merged.applied)).unwrap().as_deref(),
+            Some(original)
+        );
+        let repeated =
+            ConfigMerge::import("CLAUDE.md".into(), Some(merged.applied.clone()), line).unwrap();
+        assert_eq!(repeated.applied, merged.applied);
+        assert_eq!(
+            repeated.remove(Some(&repeated.applied)).unwrap().as_deref(),
+            Some(&*merged.applied)
+        );
+        assert!(ConfigMerge::import("CLAUDE.md".into(), None, "a\nb").is_err());
+        let json = ConfigMerge::new("opencode.json".into(), None, &json!({})).unwrap();
+        assert!(!serde_json::to_string(&json).unwrap().contains("kind"));
+        let decoded: ConfigMerge =
+            serde_json::from_str(r#"{"file":"opencode.json","original":null,"applied":"{}"}"#)
+                .unwrap();
+        assert_eq!(decoded.kind, MergeKind::Json);
     }
 
     #[test]

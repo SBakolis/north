@@ -1,6 +1,7 @@
 use crate::install::{
     AUTO_COMMIT, Installation, NORTH_PIPELINE, PIPELINE_SKILLS, pipeline_enabled,
 };
+use crate::tool::Tool;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::{
     DefaultTerminal, Frame,
@@ -26,6 +27,24 @@ pub enum Action {
     Cancel,
 }
 
+/// One installable tool and its loaded installation, or why it cannot be managed.
+pub struct Candidate {
+    pub tool: Tool,
+    pub installation: Result<Installation, String>,
+}
+
+impl Candidate {
+    fn status(&self) -> String {
+        match &self.installation {
+            Ok(installation) if installation.installed() => {
+                format!("installed in {}", installation.config.display())
+            }
+            Ok(installation) => format!("not installed; uses {}", installation.config.display()),
+            Err(error) => format!("unavailable: {error}"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum Entry {
     Heading(&'static str),
@@ -37,14 +56,14 @@ enum Entry {
 }
 
 impl Entry {
-    fn label(&self) -> &str {
+    fn label(&self, tool: Tool) -> &str {
         match self {
             Self::Heading(label) => label,
             Self::Skill(label) => label,
             Self::AutoCommit => "Auto commit",
             Self::Pipeline => "North pipeline",
             Self::OpenSpec => "OpenSpec CLI (install if missing; npm global)",
-            Self::Merge => "Merge installations (opencode.json / opencode.jsonc)",
+            Self::Merge => tool.merge_label(),
         }
     }
 
@@ -144,7 +163,135 @@ fn select_regular_skills(
     }
 }
 
-pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::Result<Action> {
+/// Ask which tool to install for, then manage that tool's installation.
+/// With a single candidate the tool question is skipped.
+pub fn run(
+    terminal: &mut DefaultTerminal,
+    candidates: &[Candidate],
+) -> io::Result<(usize, Action)> {
+    let choose = candidates.len() > 1;
+    let mut index = candidates
+        .iter()
+        .position(|candidate| candidate.installation.is_ok())
+        .unwrap_or(0);
+    loop {
+        if choose {
+            match choose_tool(terminal, candidates, index)? {
+                Some(chosen) => index = chosen,
+                None => return Ok((index, Action::Cancel)),
+            }
+        }
+        let installation = candidates[index]
+            .installation
+            .as_ref()
+            .expect("only loadable installations are chosen");
+        match checklist(terminal, installation, choose)? {
+            Some(action) => return Ok((index, action)),
+            None => continue,
+        }
+    }
+}
+
+fn choose_tool(
+    terminal: &mut DefaultTerminal,
+    candidates: &[Candidate],
+    initial: usize,
+) -> io::Result<Option<usize>> {
+    let mut list = ListState::default().with_selected(Some(initial));
+    loop {
+        terminal.draw(|frame| render_tools(frame, candidates, &mut list))?;
+        let Event::Key(key) = event::read()? else {
+            continue;
+        };
+        if key.kind != KeyEventKind::Press {
+            continue;
+        }
+        if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            return Ok(None);
+        }
+        let current = list.selected().unwrap_or(0);
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') => return Ok(None),
+            KeyCode::Down | KeyCode::Char('j') => {
+                list.select(Some((current + 1) % candidates.len()));
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                list.select(Some((current + candidates.len() - 1) % candidates.len()));
+            }
+            KeyCode::Enter | KeyCode::Char(' ') if candidates[current].installation.is_ok() => {
+                return Ok(Some(current));
+            }
+            _ => {}
+        }
+    }
+}
+
+fn render_tools(frame: &mut Frame, candidates: &[Candidate], list: &mut ListState) {
+    let [banner, header, body, footer] = layout(frame, candidates.len());
+    render_banner(frame, banner);
+    frame.render_widget(
+        Paragraph::new(
+            "Choose the tool to install North for. Each tool keeps its own installation, links, and skill selection.",
+        )
+        .wrap(Wrap { trim: true })
+        .block(Block::bordered().title(" North / Choose tool ")),
+        header,
+    );
+    let items: Vec<_> = candidates
+        .iter()
+        .map(|candidate| {
+            let item = ListItem::new(format!(
+                "{:<12}{}",
+                candidate.tool.label(),
+                candidate.status()
+            ));
+            if candidate.installation.is_err() {
+                item.style(Style::default().fg(Color::DarkGray))
+            } else {
+                item
+            }
+        })
+        .collect();
+    frame.render_stateful_widget(
+        List::new(items)
+            .block(Block::bordered().title(" Tools "))
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol("> "),
+        body,
+        list,
+    );
+    let blocked = list
+        .selected()
+        .and_then(|index| candidates.get(index))
+        .and_then(|candidate| candidate.installation.as_ref().err());
+    let help = match blocked {
+        Some(error) => format!(
+            "This installation cannot be managed until the problem is fixed:\n{error}\nUp/Down or j/k: move   q/Esc: quit"
+        ),
+        None => "Up/Down or j/k: move   Enter: continue with the selected tool\nq/Esc: quit without changes".into(),
+    };
+    frame.render_widget(
+        Paragraph::new(help)
+            .wrap(Wrap { trim: true })
+            .style(Style::default().fg(if blocked.is_some() {
+                Color::Yellow
+            } else {
+                Color::Gray
+            }))
+            .block(Block::bordered().title(" Controls ")),
+        footer,
+    );
+}
+
+fn checklist(
+    terminal: &mut DefaultTerminal,
+    installation: &Installation,
+    back: bool,
+) -> io::Result<Option<Action>> {
     let mut selected = installation.selected_skills();
     let mut openspec = false;
     let mut merge = installation.merging();
@@ -162,6 +309,7 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
                 confirming_uninstall,
                 openspec,
                 merge,
+                back,
             )
         })?;
         let Event::Key(key) = event::read()? else {
@@ -171,11 +319,11 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
             continue;
         }
         if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
-            return Ok(Action::Cancel);
+            return Ok(Some(Action::Cancel));
         }
         if confirming_uninstall {
             match key.code {
-                KeyCode::Char('y') => return Ok(Action::Uninstall),
+                KeyCode::Char('y') => return Ok(Some(Action::Uninstall)),
                 KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('q') => {
                     confirming_uninstall = false
                 }
@@ -184,7 +332,8 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
             continue;
         }
         match key.code {
-            KeyCode::Esc | KeyCode::Char('q') => return Ok(Action::Cancel),
+            KeyCode::Esc | KeyCode::Backspace if back => return Ok(None),
+            KeyCode::Esc | KeyCode::Char('q') => return Ok(Some(Action::Cancel)),
             KeyCode::Down | KeyCode::Char('j') => {
                 move_selection(&entries, &mut list, true);
             }
@@ -199,11 +348,11 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
             KeyCode::Char('a') => select_regular_skills(installation, &mut selected, true),
             KeyCode::Char('n') => select_regular_skills(installation, &mut selected, false),
             KeyCode::Enter => {
-                return Ok(Action::Apply {
+                return Ok(Some(Action::Apply {
                     skills: Some(selected),
                     openspec,
                     merge,
-                });
+                }));
             }
             KeyCode::Char('u') if installation.installed() => confirming_uninstall = true,
             _ => {}
@@ -211,6 +360,37 @@ pub fn run(terminal: &mut DefaultTerminal, installation: &Installation) -> io::R
     }
 }
 
+// Leave more room for the scrolling list when the catalog is long.
+fn layout(frame: &Frame, rows: usize) -> [ratatui::layout::Rect; 4] {
+    let full_banner = usize::from(frame.area().height) >= 17 + rows
+        && usize::from(frame.area().width) >= NORTH_BANNER.lines().map(str::len).max().unwrap_or(0);
+    Layout::vertical([
+        Constraint::Length(if full_banner { 5 } else { 1 }),
+        Constraint::Length(5),
+        Constraint::Min(3),
+        Constraint::Length(5),
+    ])
+    .areas(frame.area())
+}
+
+fn render_banner(frame: &mut Frame, area: ratatui::layout::Rect) {
+    frame.render_widget(
+        Paragraph::new(if area.height >= 5 {
+            NORTH_BANNER
+        } else {
+            "NORTH"
+        })
+        .alignment(Alignment::Center)
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        area,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
 fn render(
     frame: &mut Frame,
     installation: &Installation,
@@ -219,40 +399,24 @@ fn render(
     confirming: bool,
     openspec: bool,
     merge: bool,
+    back: bool,
 ) {
-    // Leave more room for the scrolling checklist when the catalog is long.
+    let tool = installation.tool;
     let entries = entries(installation);
-    let full_banner = usize::from(frame.area().height) >= 17 + entries.len()
-        && usize::from(frame.area().width) >= NORTH_BANNER.lines().map(str::len).max().unwrap_or(0);
-    let [banner, header, body, footer] = Layout::vertical([
-        Constraint::Length(if full_banner { 5 } else { 1 }),
-        Constraint::Length(5),
-        Constraint::Min(3),
-        Constraint::Length(5),
-    ])
-    .areas(frame.area());
-    frame.render_widget(
-        Paragraph::new(if full_banner { NORTH_BANNER } else { "NORTH" })
-            .alignment(Alignment::Center)
-            .style(
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        banner,
-    );
+    let [banner, header, body, footer] = layout(frame, entries.len());
+    render_banner(frame, banner);
     let title = if installation.installed() {
-        " North / Manage installation "
+        format!(" North / {} / Manage installation ", tool.label())
     } else {
-        " North / Install "
+        format!(" North / {} / Install ", tool.label())
     };
     let intro = format!(
         "{}\nChoose workflows and skills. Instructions, agents and /north are included.\n{}",
         installation.config.display(),
         if merge {
-            "Merge: keep AGENTS.md and combine existing OpenCode settings with North."
+            tool.merge_summary()
         } else {
-            "Existing AGENTS.md is saved as AGENTS-backup.md on first installation."
+            tool.replace_summary()
         }
     );
     frame.render_widget(
@@ -294,7 +458,7 @@ fn render(
                 } else {
                     " "
                 },
-                entry.label(),
+                entry.label(tool),
                 if required { " (required)" } else { "" }
             ))
         })
@@ -313,12 +477,21 @@ fn render(
         body,
         list,
     );
-    let help = if confirming {
-        "Uninstall North and undo its instructions/config additions?\nPress y to uninstall; n or Esc to return. Your settings are preserved."
-    } else if installation.installed() {
-        "Up/Down or j/k: move   Space: toggle   a/n: all/no regular skills\nEnter: save changes   u: uninstall North   q/Esc: quit without changes\nPipeline: commands + memory. [+]: required by enabled options."
+    let leave = if back {
+        "Esc: choose another tool   q: quit without changes"
     } else {
-        "Up/Down or j/k: move   Space: toggle   a/n: all/no regular skills\nEnter: install North   q/Esc: quit without changes\nPipeline: commands + memory. [+]: required by enabled options."
+        "q/Esc: quit without changes"
+    };
+    let help = if confirming {
+        "Uninstall North and undo its instructions/config additions?\nPress y to uninstall; n or Esc to return. Your settings are preserved.".to_owned()
+    } else if installation.installed() {
+        format!(
+            "Up/Down or j/k: move   Space: toggle   a/n: all/no regular skills\nEnter: save changes   u: uninstall North   {leave}\nPipeline: commands + memory. [+]: required by enabled options."
+        )
+    } else {
+        format!(
+            "Up/Down or j/k: move   Space: toggle   a/n: all/no regular skills\nEnter: install North   {leave}\nPipeline: commands + memory. [+]: required by enabled options."
+        )
     };
     frame.render_widget(
         Paragraph::new(help)
@@ -343,11 +516,15 @@ mod tests {
     use ratatui::{Terminal, backend::TestBackend};
 
     fn fixture() -> (tempfile::TempDir, Installation) {
+        fixture_for(Tool::OpenCode)
+    }
+
+    fn fixture_for(tool: Tool) -> (tempfile::TempDir, Installation) {
         let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap();
         let temp = tempfile::tempdir().unwrap();
-        let installation = Installation::load(repo, &temp.path().join("config")).unwrap();
+        let installation = Installation::load(repo, tool, &temp.path().join("config")).unwrap();
         (temp, installation)
     }
 
@@ -392,6 +569,21 @@ mod tests {
         assert!(skills.contains("clarify-requirements"));
         assert!(skills.contains("research"));
         assert!(skills.contains("subagent-usage"));
+    }
+
+    #[test]
+    fn both_tools_offer_the_same_skill_catalog() {
+        let (_temp, opencode) = fixture();
+        let (_temp, claude) = fixture_for(Tool::Claude);
+        assert_eq!(entries(&opencode), entries(&claude));
+        assert_eq!(
+            Entry::Merge.label(Tool::Claude),
+            "Merge installations (import North into CLAUDE.md)"
+        );
+        assert_ne!(
+            Entry::Merge.label(Tool::OpenCode),
+            Entry::Merge.label(Tool::Claude)
+        );
     }
 
     #[test]
@@ -455,46 +647,51 @@ mod tests {
 
     #[test]
     fn checklist_and_uninstall_confirmation_render_in_small_terminals() {
-        let (_temp, installation) = fixture();
-        let rows = entries(&installation);
-        for (width, height) in [(80, 24), (35, 12), (10, 5)] {
-            let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
-            for confirming in [false, true] {
-                let mut list = ListState::default();
-                for (index, entry) in rows.iter().enumerate() {
-                    if !entry.selectable() {
-                        continue;
-                    }
-                    list.select(Some(index));
-                    terminal
-                        .draw(|frame| {
-                            render(
-                                frame,
-                                &installation,
-                                &installation.selected_skills(),
-                                &mut list,
-                                confirming,
-                                true,
-                                true,
-                            )
-                        })
-                        .unwrap();
-                    if width == 80 {
-                        let text = screen(&terminal);
-                        assert!(
-                            text.contains(&format!("> [x] {}", entry.label())),
-                            "Selected option {} should be visible after scrolling",
-                            entry.label()
-                        );
-                        assert!(!text.contains("[x] commit"));
-                        for name in PIPELINE_SKILLS {
-                            assert!(!text.contains(&format!("[x] {name}")));
+        for tool in Tool::ALL {
+            let (_temp, installation) = fixture_for(tool);
+            let rows = entries(&installation);
+            for (width, height) in [(80, 24), (35, 12), (10, 5)] {
+                let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+                for confirming in [false, true] {
+                    let mut list = ListState::default();
+                    for (index, entry) in rows.iter().enumerate() {
+                        if !entry.selectable() {
+                            continue;
                         }
-                        assert!(text.contains(if confirming {
-                            "Confirm uninstall"
-                        } else {
-                            "Enter: install North"
-                        }));
+                        list.select(Some(index));
+                        terminal
+                            .draw(|frame| {
+                                render(
+                                    frame,
+                                    &installation,
+                                    &installation.selected_skills(),
+                                    &mut list,
+                                    confirming,
+                                    true,
+                                    true,
+                                    true,
+                                )
+                            })
+                            .unwrap();
+                        if width == 80 {
+                            let text = screen(&terminal);
+                            assert!(
+                                text.contains(&format!("> [x] {}", entry.label(tool))),
+                                "Selected option {} should be visible after scrolling",
+                                entry.label(tool)
+                            );
+                            assert!(!text.contains("[x] commit"));
+                            for name in PIPELINE_SKILLS {
+                                assert!(!text.contains(&format!("[x] {name}")));
+                            }
+                            assert!(text.contains(if confirming {
+                                "Confirm uninstall"
+                            } else {
+                                "Enter: install North"
+                            }));
+                            assert!(text.contains(tool.label()));
+                            assert!(confirming || text.contains("Esc: choose another tool"));
+                        }
                     }
                 }
             }
@@ -515,6 +712,7 @@ mod tests {
                     false,
                     false,
                     false,
+                    false,
                 )
             })
             .unwrap();
@@ -525,6 +723,9 @@ mod tests {
         assert!(text.contains("Workflow"));
         assert!(text.contains("Skills"));
         assert!(text.contains("Options / 1 skills enabled"));
+        assert!(text.contains("AGENTS-backup.md"));
+        assert!(text.contains("q/Esc: quit without changes"));
+        assert!(!text.contains("choose another tool"));
     }
 
     #[test]
@@ -553,6 +754,7 @@ mod tests {
                         false,
                         false,
                         false,
+                        false,
                     )
                 })
                 .unwrap();
@@ -562,5 +764,41 @@ mod tests {
             assert!(text.contains("[+]: required by enabled options."));
         }
         assert_eq!(selected, BTreeSet::from([NORTH_PIPELINE.into()]));
+    }
+
+    #[test]
+    fn tool_picker_shows_status_and_blocks_broken_installations() {
+        let (_temp, opencode) = fixture();
+        let candidates = [
+            Candidate {
+                tool: Tool::OpenCode,
+                installation: Ok(opencode),
+            },
+            Candidate {
+                tool: Tool::Claude,
+                installation: Err("Expected a real directory at /tmp/x".into()),
+            },
+        ];
+        for (width, height) in [(80, 24), (35, 12), (10, 5)] {
+            let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+            for index in 0..candidates.len() {
+                let mut list = ListState::default().with_selected(Some(index));
+                terminal
+                    .draw(|frame| render_tools(frame, &candidates, &mut list))
+                    .unwrap();
+                if width == 80 {
+                    let text = screen(&terminal);
+                    assert!(text.contains("> OpenCode") == (index == 0));
+                    assert!(text.contains("> Claude Code") == (index == 1));
+                    assert!(text.contains("not installed"));
+                    assert!(text.contains("unavailable: Expected a real directory"));
+                    assert_eq!(
+                        text.contains("Enter: continue with the selected tool"),
+                        index == 0
+                    );
+                    assert_eq!(text.contains("cannot be managed"), index == 1);
+                }
+            }
+        }
     }
 }

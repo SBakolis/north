@@ -23,11 +23,11 @@ fail() {
 cd "$tmp"
 env XDG_CONFIG_HOME="$config_root" sh "$root/install.sh" --all
 run --all
-[ "$(readlink "$config/AGENTS.md")" = "$root/assets/instructions/core.md" ]
-for source in "$root"/assets/agents/*.md; do
+[ "$(readlink "$config/AGENTS.md")" = "$root/assets/opencode/instructions/core.md" ]
+for source in "$root"/assets/opencode/agents/*.md; do
     [ "$(readlink "$config/agents/$(basename "$source")")" = "$source" ]
 done
-for source in "$root"/assets/commands/*.md; do
+for source in "$root"/assets/opencode/commands/*.md; do
     [ "$(readlink "$config/commands/$(basename "$source")")" = "$source" ]
 done
 for source in "$root"/assets/skills/*; do
@@ -58,7 +58,7 @@ for skill in north-plan north-explore north-execute north-save invoke-memory nor
     [ "$(readlink "$config/skills/$skill")" = "$root/assets/skills/$skill" ]
 done
 for command in north north-plan north-execute north-save; do
-    [ "$(readlink "$config/commands/$command.md")" = "$root/assets/commands/$command.md" ]
+    [ "$(readlink "$config/commands/$command.md")" = "$root/assets/opencode/commands/$command.md" ]
 done
 for skill in explain-code auto-commit; do
     [ ! -e "$config/skills/$skill" ]
@@ -235,16 +235,18 @@ config=$config_root/opencode
 run --all
 env XDG_CONFIG_HOME="$config_root" "$binary" --repo "$tmp/source with spaces" --skills explain-code
 [ "$(readlink "$config/skills/explain-code")" = "$tmp/source with spaces/assets/skills/explain-code" ]
-[ "$(readlink "$config/commands/north.md")" = "$tmp/source with spaces/assets/commands/north.md" ]
+[ "$(readlink "$config/commands/north.md")" = "$tmp/source with spaces/assets/opencode/commands/north.md" ]
 env XDG_CONFIG_HOME="$config_root" "$binary" --repo "$tmp/source with spaces" --uninstall
 [ ! -e "$config/AGENTS.md" ]
 
-# Links left by the original shell installer can be managed without a state file.
+# Links left by the original shell installer, which used the flat asset layout,
+# can be managed without a state file and move to the OpenCode asset layout.
 mkdir -p "$config/skills"
 ln -s "$root/assets/instructions/core.md" "$config/AGENTS.md"
 ln -s "$root/assets/skills/unity-ui" "$config/skills/unity-ui"
 run --skills explain-code
 [ ! -e "$config/skills/unity-ui" ]
+[ "$(readlink "$config/AGENTS.md")" = "$root/assets/opencode/instructions/core.md" ]
 run --uninstall
 [ ! -e "$config/AGENTS.md" ]
 
@@ -265,8 +267,8 @@ run --merge
 [ ! -e "$config/AGENTS-backup.md" ]
 [ -L "$config/skills/explain-code" ]
 [ ! -e "$config/skills/unity-ui" ]
-grep -q 'assets/instructions/core.md' "$config/opencode.json"
-grep -q 'assets/instructions/core.md' "$config/opencode.jsonc"
+grep -q 'assets/opencode/instructions/core.md' "$config/opencode.json"
+grep -q 'assets/opencode/instructions/core.md' "$config/opencode.jsonc"
 grep -q '// keep this comment' "$config/opencode.jsonc"
 cp "$config/opencode.jsonc" "$tmp/merged.jsonc"
 run --skills explain-code
@@ -276,6 +278,84 @@ run --uninstall
 cmp "$config/opencode.json" "$tmp/original.json"
 cmp "$config/opencode.jsonc" "$tmp/original.jsonc"
 [ "$(cat "$config/AGENTS.md")" = 'my instructions' ]
+
+# Claude Code installs into its own configuration directory with its own assets.
+claude_root="$tmp/claude config/.claude"
+claude() {
+    env CLAUDE_CONFIG_DIR="$claude_root" XDG_CONFIG_HOME="$config_root" "$binary" --repo "$root" --tool claude "$@"
+}
+claude_fail() {
+    if claude "$@"; then
+        printf 'Expected Claude Code failure: %s\n' "$*" >&2
+        exit 1
+    fi
+}
+if run --tool cursor --all; then exit 1; fi
+if run --tool; then exit 1; fi
+mkdir -p "$claude_root"
+printf '# My rules\n' > "$claude_root/CLAUDE.md"
+claude --all
+[ "$(readlink "$claude_root/CLAUDE.md")" = "$root/assets/claude/instructions/core.md" ]
+[ "$(cat "$claude_root/CLAUDE-backup.md")" = '# My rules' ]
+[ ! -e "$claude_root/AGENTS.md" ]
+for source in "$root"/assets/claude/agents/*.md; do
+    [ "$(readlink "$claude_root/agents/$(basename "$source")")" = "$source" ]
+done
+grep -q '^name: north-worker$' "$claude_root/agents/north-worker.md"
+[ "$(readlink "$claude_root/commands/north.md")" = "$root/assets/claude/commands/north.md" ]
+# Pipeline skills are Claude Code slash commands themselves; no wrappers are linked.
+for command in north-plan north-execute north-save; do
+    [ ! -e "$claude_root/commands/$command.md" ]
+    [ "$(readlink "$claude_root/skills/$command")" = "$root/assets/skills/$command" ]
+done
+for source in "$root"/assets/skills/*; do
+    [ "$(basename "$source")" = commit ] && continue
+    [ "$(readlink "$claude_root/skills/$(basename "$source")")" = "$source" ]
+done
+grep -q '"tool": "claude"' "$claude_root/.north-installation.json"
+# The OpenCode installation is separate and untouched.
+[ ! -e "$config/CLAUDE.md" ]
+[ "$(cat "$config/AGENTS.md")" = 'my instructions' ]
+claude --skills explain-code
+[ -L "$claude_root/skills/explain-code" ]
+[ ! -e "$claude_root/skills/unity-ui" ]
+[ ! -e "$claude_root/skills/north-plan" ]
+# Merge mode keeps CLAUDE.md and imports North's instructions instead of linking.
+claude --merge
+[ ! -L "$claude_root/CLAUDE.md" ]
+[ ! -e "$claude_root/CLAUDE-backup.md" ]
+printf '# My rules\n@%s/assets/claude/instructions/core.md\n' "$root" > "$tmp/expected-claude.md"
+cmp "$claude_root/CLAUDE.md" "$tmp/expected-claude.md"
+[ -L "$claude_root/skills/explain-code" ]
+claude --skills explain-code
+cmp "$claude_root/CLAUDE.md" "$tmp/expected-claude.md"
+printf 'Later edit\n' >> "$claude_root/CLAUDE.md"
+claude_fail --merge --uninstall
+claude --uninstall
+printf '# My rules\nLater edit\n' > "$tmp/expected-claude.md"
+cmp "$claude_root/CLAUDE.md" "$tmp/expected-claude.md"
+[ ! -e "$claude_root/.north-installation.json" ]
+[ ! -e "$claude_root/agents" ]
+[ ! -e "$claude_root/skills" ]
+# Without CLAUDE.md, merge mode creates it and uninstall removes it again.
+rm "$claude_root/CLAUDE.md"
+claude --merge
+printf '@%s/assets/claude/instructions/core.md\n' "$root" > "$tmp/expected-claude.md"
+cmp "$claude_root/CLAUDE.md" "$tmp/expected-claude.md"
+claude --uninstall
+[ ! -e "$claude_root/CLAUDE.md" ]
+# A state file from the other tool is refused, and HOME supplies the default directory.
+env -u CLAUDE_CONFIG_DIR HOME="$tmp/home" "$binary" --repo "$root" --tool claude --skills ''
+[ "$(readlink "$tmp/home/.claude/CLAUDE.md")" = "$root/assets/claude/instructions/core.md" ]
+cp "$tmp/home/.claude/.north-installation.json" "$tmp/claude-state.json"
+mkdir -p "$tmp/mixed/opencode"
+cp "$tmp/claude-state.json" "$tmp/mixed/opencode/.north-installation.json"
+if env XDG_CONFIG_HOME="$tmp/mixed" "$binary" --repo "$root" --skills ''; then exit 1; fi
+[ ! -e "$tmp/mixed/opencode/AGENTS.md" ]
+env CLAUDE_CONFIG_DIR='' HOME="$tmp/home" "$binary" --repo "$root" --tool claude --uninstall
+[ ! -e "$tmp/home/.claude/CLAUDE.md" ]
+if env CLAUDE_CONFIG_DIR=relative "$binary" --repo "$root" --tool claude --all; then exit 1; fi
+[ ! -e relative ]
 
 # OpenSpec uses isolated command stubs: tests never install global packages.
 mock_bin="$tmp/mock bin"

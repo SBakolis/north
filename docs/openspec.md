@@ -7,7 +7,8 @@ and constraints when delegating to subagents.
 The North installer can optionally install the OpenSpec CLI. In a working
 project, `/north` creates the North directory and checks for an existing
 OpenSpec setup. If none exists and the CLI is available, it asks before running
-`openspec init --tools opencode` in that project. It skips initialization when
+`openspec init --tools opencode` or `openspec init --tools claude` in that project,
+matching the tool in use. It skips initialization when
 the CLI is missing or the user declines, and preserves existing OpenSpec files.
 See the [OpenSpec CLI reference](https://github.com/Fission-AI/OpenSpec/blob/main/docs/cli.md)
 for initialization options.
