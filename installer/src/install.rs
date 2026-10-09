@@ -45,9 +45,25 @@ fn skill_dependencies(name: &str) -> &'static [&'static str] {
         | "dry-skillify"
         | "domain-modeling"
         | "prototype"
+        | "retrospective"
         | "skill-evaluation" => &["north-sources"],
         _ => &[],
     }
+}
+
+// A command named after a bundled skill is that skill's wrapper and follows its selection.
+fn skill_command_enabled(
+    available: &BTreeMap<PathBuf, PathBuf>,
+    selected: &BTreeSet<String>,
+    relative: &Path,
+) -> bool {
+    if !relative.starts_with("commands") {
+        return true;
+    }
+    let Some(name) = relative.file_stem().and_then(|stem| stem.to_str()) else {
+        return true;
+    };
+    !available.contains_key(&Path::new("skills").join(name)) || selected.contains(name)
 }
 
 // Skills are shared; instructions, agents, and commands are tool-specific.
@@ -419,6 +435,7 @@ impl Installation {
                             .contains(&relative.file_name().unwrap().to_str().unwrap()))
                     && (!relative.starts_with("skills")
                         || selected.contains(relative.file_name().unwrap().to_str().unwrap()))
+                    && skill_command_enabled(&self.available, &selected, relative)
             })
             .map(|(relative, source)| (relative.clone(), source.clone()))
             .collect();
@@ -1032,6 +1049,19 @@ mod tests {
             .unwrap();
         assert!(!exists(&config.join("skills/north-save")).unwrap());
         assert!(!exists(&config.join("commands")).unwrap());
+    }
+
+    #[test]
+    fn skill_command_follows_its_skill_selection() {
+        let (_temp, repo, config) = fixture();
+        fs::write(repo.join("assets/opencode/commands/one.md"), "command").unwrap();
+        let installation = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
+        installation.apply(&BTreeSet::from(["one".into()])).unwrap();
+        assert!(config.join("commands/one.md").is_symlink());
+        let installation = Installation::load(&repo, Tool::OpenCode, &config).unwrap();
+        installation.apply(&BTreeSet::from(["two".into()])).unwrap();
+        assert!(!exists(&config.join("commands/one.md")).unwrap());
+        assert!(config.join("commands/north.md").is_symlink());
     }
 
     #[test]

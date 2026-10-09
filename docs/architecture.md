@@ -42,7 +42,7 @@ delegated execution. Both primary agents and subagents can use skills.
 
 Engineering skills provide focused methods for requirements clarification, bug
 diagnosis, test design, code and architecture review, domain modeling, research,
-prototyping, handoffs, and skill evaluation. They are independently selectable;
+prototyping, handoffs, retrospectives, and skill evaluation. They are independently selectable;
 agents load only installed methods relevant to the assignment. The planner uses
 them to propose decisions and acceptance checks, the worker to implement and
 validate scoped behavior, and the verifier to review changes and supplied evidence.

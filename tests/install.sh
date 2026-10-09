@@ -97,8 +97,12 @@ for command in north-plan north-execute north-save; do
     [ ! -e "$config/commands/$command.md" ]
 done
 [ -L "$config/skills/commit" ]
+run --skills retrospective
+[ "$(readlink "$config/commands/retrospective.md")" = "$root/assets/opencode/commands/retrospective.md" ]
+[ -L "$config/skills/north-sources" ]
 run --skills unity-ui
 [ -L "$config/skills/unity-ui" ]
+[ ! -e "$config/commands/retrospective.md" ]
 fail --skills unknown-skill
 [ -L "$config/skills/unity-ui" ]
 fail --all --uninstall

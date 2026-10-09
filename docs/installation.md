@@ -59,8 +59,10 @@ skills answer to those slash commands directly, so no wrappers are linked.
 
 `north-sources` supplies shared storage conventions and the plan contract. The
 installer also includes it for standalone research, clarification, delegation,
-handoff, domain modeling, prototype, skill evaluation, and preference-learning
-skills. Those selections do not enable pipeline commands.
+handoff, domain modeling, prototype, retrospective, skill evaluation, and
+preference-learning skills. Those selections do not enable pipeline commands.
+OpenCode links `/retrospective` only while the `retrospective` skill is enabled;
+Claude Code exposes the skill as that command directly.
 
 Disabling **North pipeline** removes its owned command and skill links. Project
 plans and memories remain intact. Reruns preserve the group setting. When
@@ -106,6 +108,7 @@ the tool's own asset directory:
 | `commands/north-plan.md` (OpenCode, North pipeline enabled) | `assets/opencode/commands/north-plan.md` |
 | `commands/north-execute.md` (OpenCode, North pipeline enabled) | `assets/opencode/commands/north-execute.md` |
 | `commands/north-save.md` (OpenCode, North pipeline enabled) | `assets/opencode/commands/north-save.md` |
+| `commands/retrospective.md` (OpenCode, retrospective enabled) | `assets/opencode/commands/retrospective.md` |
 | `agents/north-planner.md` | `assets/<tool>/agents/north-planner.md` |
 | `agents/north-worker.md` | `assets/<tool>/agents/north-worker.md` |
 | `agents/north-verifier.md` | `assets/<tool>/agents/north-verifier.md` |

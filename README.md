@@ -135,6 +135,9 @@ Engineering methods:
   artifact pointers, actual execution state, and the next actions.
 - [skill-evaluation](assets/skills/skill-evaluation/SKILL.md): evaluate skill
   selection and observable behavior using isolated, realistic scenarios.
+- [retrospective](assets/skills/retrospective/SKILL.md): run with `/retrospective`
+  to review a session and propose ranked improvements to steering files, checks,
+  review standards, skills, plans, and memory.
 
 Project context and delivery:
 

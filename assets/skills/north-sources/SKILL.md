@@ -28,6 +28,7 @@ requirements where their tooling or project instructions require them.
 | Continuation brief | `handoffs/` | `handoff` |
 | Experiment notes | `prototypes/` | `prototype` |
 | Skill evaluation evidence | `evaluations/` | `skill-evaluation` |
+| Session retrospectives | `retrospectives/` | `retrospective` |
 | Preference observations | `dry/<behavior>.md` | `dry-skillify` |
 | Generated preference skills | `skills/<name>/SKILL.md` | `dry-skillify` |
 
