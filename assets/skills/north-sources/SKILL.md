@@ -22,7 +22,7 @@ requirements where their tooling or project instructions require them.
 
 | Artifact | Location relative to the resolved North directory | Owner |
 | --- | --- | --- |
-| Feature plan | `plans/<feature>/index.md`, `research.md`, `tasks/*.md` | `north-plan` creates; `north-execute` progresses |
+| Feature plan | `plans/<feature>/index.md`, `plan.md`, `research.md`, `tasks/*.md` | `north-plan` creates; `north-execute` progresses |
 | Implementation memory | `memories/index.md`, `memories/<feature>.md` | `invoke-memory` reads; `north-save` writes |
 | Standalone research | `research/` | `research` |
 | Continuation brief | `handoffs/` | `handoff` |
@@ -35,12 +35,24 @@ requirements where their tooling or project instructions require them.
 Reuse an existing relevant artifact rather than creating competing copies.
 For notes without a category above, choose a descriptive path under the artifact root.
 Link authoritative material stored elsewhere; do not relocate or duplicate it.
-Use relative Markdown links that resolve from the file containing them. Preserve
+Use file-relative Markdown links by default; `/`-prefixed concept links resolve
+from the North bundle root, not the repository or filesystem root. Preserve
 unrelated records and enough provenance to judge whether a saved claim applies.
 Do not store secrets or unnecessary personal information.
 
 This skill defines storage conventions. It does not retrieve implementation
 memories, save feature knowledge, or promote preferences; use the owners above.
+
+## Apply the shared format
+
+Read [the OKF v0.2 profile](references/okf-format.md) when saving generated North
+artifacts or interpreting their metadata, provenance, links, or navigation.
+The resolved North directory is the bundle boundary. This does not convert
+bundled steering files, repository documentation, code, or authoritative OpenSpec.
+New concept records use YAML `type`; legacy records remain readable without
+bulk migration. Preserve unknown extensions and report mixed bundles honestly.
+Reading creates nothing; `/north` still scaffolds only the directory. Writers
+maintain optional navigation lazily, with shared updates owned by the primary.
 
 ## Work with a plan
 
