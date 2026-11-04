@@ -53,3 +53,17 @@ do not keep collecting sources merely to increase their number.
 When saving findings, load `north-sources` for artifact conventions. Use the
 selected feature plan's research record when one is provided, otherwise its
 standalone research location. Apply North's shared artifact and ownership rules.
+Read the [OKF profile](../north-sources/references/okf-format.md) and use
+`type: Research` with a descriptive title/description for saved North findings.
+Link the actual plan authority selected by the plan contract, not an assumed
+index. Ordinary chat answers and authoritative external records keep their formats.
+
+Include actual consulted sources in YAML `sources`, each with `resource` pointing
+to its URL or correctly resolved local path. Give attributed sources stable `id`
+values and cite claims with matching footnote labels (`[^source-id]`); define the
+footnotes in the body and preserve IDs when sources are reordered. Check local
+evidence links against the checkout. Identify unavailable sources as gaps, not
+consulted evidence. Record source versions and applicability in the findings.
+Only add known source dates, actors, or usage statistics under the profile's
+rules; do not manufacture credibility metadata. `generated` is authorship, not
+verification; add `verified` only for actual confirmation with known actor/time.

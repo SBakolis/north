@@ -52,3 +52,6 @@ facts, and follow the project's OpenSpec workflow where applicable. Persist only
 when useful and within the task's write scope. If a supporting North record is
 needed, load `north-sources` and apply the shared artifact rules. Include source
 paths and explicitly replace superseded decisions.
+Apply its [OKF profile](../north-sources/references/okf-format.md) with
+`type: Domain Model` to saved North supporting records only. Chat output and
+authoritative glossaries, specifications, and OpenSpec retain their formats.

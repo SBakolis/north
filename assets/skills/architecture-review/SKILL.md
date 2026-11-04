@@ -49,7 +49,9 @@ do not create a migration project merely because a cleaner design is imaginable.
 Review alone authorizes an assessment, not code changes. A read-only agent or
 `north-planner` returns proposed decisions and tasks to the primary agent.
 If persistence is within scope, update the existing authoritative design record
-through its project workflow. The primary agent may save supporting analysis under
-the configured North output directory, otherwise `<project-root>/north/`, resolved
-from the working project rather than the kit. Create it only when needed and link
-to existing decisions instead of maintaining a competing design document.
+through its project workflow. For saved North supporting analysis, load
+`north-sources` to resolve the working project's output directory and read its
+[OKF profile](../north-sources/references/okf-format.md). The primary agent may
+save a `type: Architecture Review` record there when needed, linking existing
+decisions instead of maintaining a competing design document. Chat assessments
+and authoritative external design records retain their formats.

@@ -87,6 +87,9 @@ location fits. Note candidates considered and rejected only when the reason is
 useful. Keep the report concise; do not paste transcripts.
 
 Return the report in the response. Save it under `retrospectives/` in the
-North directory only when the user asks. Apply a proposed change only after the
+North directory only when the user asks, using the
+[OKF profile](../north-sources/references/okf-format.md) and `type: Retrospective`.
+This does not change the chat-first default or authorize saving proposed memories
+or preferences. Apply a proposed change only after the
 user selects it, following the owning skill for memories, preferences, plans,
 and commits.

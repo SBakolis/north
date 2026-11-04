@@ -59,5 +59,9 @@ the change. Recheck affected cases after a revision and keep claims bounded to
 the scenarios exercised. Do not turn every isolated example into a universal rule.
 
 When saving evaluation results, load `north-sources` for the evidence location
-and apply the shared artifact rules. In a read-only evaluation, return proposed
+and apply its [OKF profile](../north-sources/references/okf-format.md) with
+`type: Skill Evaluation` to saved North reports. Keep runnable fixtures and raw
+outputs in their appropriate isolated locations and link actual retained evidence;
+do not present a disposable path as durable evidence. Chat-only results and
+tool-native outputs retain their formats. In a read-only evaluation, return proposed
 cases without writing fixtures or running mutations.

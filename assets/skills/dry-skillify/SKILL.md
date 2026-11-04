@@ -6,6 +6,9 @@ description: Record recurring user preferences in north/dry Markdown files and t
 # DRY skillify
 
 Load `north-sources` for the project output directory and storage conventions.
+Read its [OKF profile](../north-sources/references/okf-format.md) for saved
+observations and generated skills. The primary agent owns these writes and shared
+navigation; delegated agents return evidence or proposed updates.
 Record reusable preferences about how the user wants work performed, keeping each preference
 within the context supported by the evidence. Task requirements that happen to
 repeat are not automatically general preferences.
@@ -18,8 +21,10 @@ same behavior. Each record should contain:
 
 - The proposed preference and its scope, including situations where it does
   not apply.
-- Status: `observing`, `promoted`, or `retired`.
-- Distinct observations, each with a date, task or conversation reference when
+- YAML `type: Preference Observation`, a descriptive title/description, and
+  `preference_status: observing`, `promoted`, or `retired`. This progress is
+  separate from optional OKF lifecycle `status`.
+- Distinct observations, each with a known date, task or conversation reference when
   available, a concise description of the user's request or correction, and
   the context in which it applied. If a durable reference is unavailable, record
   an honest context summary; never invent an identifier or quote.
@@ -32,6 +37,10 @@ repeated quote, retry, delegated-agent report, or multiple mentions of the same
 decision counts once. Agent-chosen behavior and user silence do not count as
 evidence. Log only observations actually available in the current context or
 verified saved sources; do not invent earlier instances to reach a threshold.
+Omit unknown dates and provenance rather than estimating them. Read legacy
+records in place; on an explicit format update, move unambiguous preference
+progress to `preference_status`, preserving history and extensions. Clarify
+conflicting fields rather than treating progress as OKF lifecycle.
 
 ## Promote a supported pattern
 
@@ -41,14 +50,16 @@ preference without an unresolved contradiction, automatically create or update
 user supplies one. An explicit request to save a preference as a skill can be
 acted on immediately; record that instruction as the reason for early promotion.
 
-Use lowercase hyphenated skill names. Include YAML frontmatter with `name` and
-a concise `description` explaining the preference and when it applies. The body
+Use lowercase hyphenated skill names. Include YAML `type: Agent Skill` alongside
+native frontmatter `name` and a concise `description` explaining the preference
+and when it applies. The body
 should describe the desired behavior, relevant exceptions, and a relative link
 to its evidence record (`../../dry/<behavior-slug>.md`). Keep the skill focused
 on decisions future agents need to make; omit conversation transcripts and
 generic advice. Check the frontmatter, name, scope, and evidence link before
-marking the record `promoted`. Mention the created or updated skill briefly in
-the task's completion report.
+setting `preference_status: promoted`. Confirm the evidence link resolves to the
+actual record; add provenance only for observed facts, never inferred verification.
+Mention the created or updated skill briefly in the task's completion report.
 
 Update an existing matching generated skill instead of producing duplicates.
 If a bundled or unrelated existing skill overlaps, record the scoped preference
@@ -61,5 +72,7 @@ contexts explain the difference. Otherwise leave the candidate unpromoted until
 the preference is clear. A current explicit correction overrides older evidence:
 revise or retire an already promoted skill and update its record. For retirement,
 remove obsolete behavioral instructions from the skill and identify it as retired
-in its description so future readers do not apply it. Never turn a learned
-preference into authority for unrelated actions or broader permissions.
+in its description so future readers do not apply it; retain its type, native
+name/description and evidence link, and set the record's `preference_status: retired`.
+Never turn a learned preference into authority for unrelated actions or broader
+permissions.
