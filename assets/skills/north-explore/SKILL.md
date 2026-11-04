@@ -17,8 +17,15 @@ Cover the choices that can change this implementation:
 - The recommended approach, meaningful alternatives, and experiments or unresolved
   decisions that affect task boundaries and dependencies.
 
-Return findings for the primary to save in the selected plan's research record,
-with links from the index and affected tasks. Without a feature plan, use the
+Load `north-sources` and its [OKF profile](../north-sources/references/okf-format.md)
+for saved research. Return findings for the primary to save as `type: Research`,
+linking the selected authoritative overview (`plan.md` for new plans, the
+existing detailed index or single file for legacy plans) and affected tasks.
+Include source resources, stable source IDs for claim footnotes, applicability,
+observed freshness facts, and evidence gaps sufficient to author provenance.
+Footnote labels must match source IDs, not source-list positions. Omit unknown
+actors, dates, and trust data; investigation or authorship alone is not verification.
+The primary maintains navigation listings lazily. Without a feature plan, use the
 standalone research location from `north-sources`. Follow `research` for source
 selection, citations, freshness checks, and unavailable evidence.
 Do not install libraries or implement the feature during exploration.

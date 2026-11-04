@@ -17,6 +17,7 @@ workers do not spawn further workers or manage branches themselves.
 ## Assign compatible work
 
 Load `north-sources` and use its
+[OKF profile](../north-sources/references/okf-format.md) and
 [plan contract](../north-sources/references/plan-format.md) for graph validation,
 task evidence, and recovery. For multiple delegated tasks, create or reuse a plan
 under that contract; a separate planning phase is optional outside the pipeline.
@@ -35,6 +36,17 @@ Give each worker its task ID, goal, relevant context, prerequisite results, allo
 write scope, acceptance checks, and exact checkout path and branch. Require it to
 confirm that checkout before editing and return changed files, actual validation
 results, and blockers. Review returned changes before marking a task done.
+
+Include the resolved artifact root, exact authoritative overview and task paths,
+and selected schema in each assignment. New `north-plan-v1` tasks use
+`task_status` with a `plan.md` overview; legacy directory tasks use execution
+`status` with their existing detailed index, and legacy single-file plans retain
+their task table. A navigation index is not the overview. Resolve ambiguous
+schema/state through the contract before dispatch, not by guessing lifecycle.
+Workers return evidence and proposed progress updates; only the primary edits
+shared plans or navigation. Preserve unknown keys, provenance, and history during
+updates; acceptance or `done` does not itself add document verification or human
+review. Do not convert legacy plans as a delegation side effect.
 
 ## Prefer worktrees for implementation
 

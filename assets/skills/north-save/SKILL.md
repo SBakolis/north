@@ -10,7 +10,8 @@ it lives, why consequential decisions were made, and how it was checked.
 
 ## Establish what was implemented
 
-Load `north-sources` for artifact locations and its
+Load `north-sources` for artifact locations, its
+[OKF profile](../north-sources/references/okf-format.md), and its
 [plan contract](../north-sources/references/plan-format.md) for plan selection
 and evidence. Without a selector or conversation context, look for a sole
 completed plan. Read its task records, research decisions, code, and validation.
@@ -32,22 +33,33 @@ history intact; saving memory does not mark any task done or archive the plan.
 
 Update the feature memory and memory index at the locations defined by
 `north-sources`. Reuse the plan's feature slug; for a legacy plan derive
-a safe lowercase hyphenated slug. Reserve `index.md` for navigation, choosing a
-distinct memory filename such as `index-feature.md` if the feature is `index`.
+a safe lowercase hyphenated slug. Reserve both `index.md` and `log.md` at every
+directory level, choosing a distinct memory filename such as `index-feature.md`
+or `log-feature.md` for those feature names. Report existing reserved-name
+collisions rather than overwrite or silently rename their content.
 Verify that an existing filename belongs to this feature; choose a distinct
 filename if it belongs to another feature. Preserve unrelated entries and
-previous valid context and apply the shared artifact rules. Correct superseded
+previous valid context and apply the shared artifact rules. Preserve unknown
+keys, source IDs, provenance, and history when making meaningful updates; identify
+verification invalidated by changed claims without implying reconfirmation.
+Read legacy memories in place; convert only the selected record on an explicit
+format update, never unrelated memories or the active plan. Correct superseded
 claims explicitly; do not append contradictory memories for the same feature.
 
 Use this concise record shape, omitting empty or irrelevant sections:
 
 ```markdown
+---
+type: Implementation Memory
+title: <feature title>
+description: <one-sentence implemented coverage and material limits>
+---
 # Memory: <feature title>
 
 Feature: <slug>
 Coverage: complete | partial
-Verified against: <date and revision, or explicit working-tree state>
-Plan: <relative link to the authoritative plan index or legacy plan>
+Evidence checked against: <revision or explicit working-tree state>
+Plan: <relative link to authoritative plan.md, legacy detailed index, or single file>
 Tags: <domain terms, components, useful search terms>
 
 ## Implemented behavior
@@ -64,11 +76,25 @@ Actual commands/results and evidence links, including important limits.
 Unfinished task IDs, known gaps, and conditions future changes must consider.
 ```
 
-The index has one row per feature linking its memory, with a short summary,
-search terms, complete/partial coverage, and verification date or revision.
-Use relative Markdown links to the plan and project files from the memory's
-location. Verify saved links resolve, and add a reciprocal memory link to the
-plan index or its handoff section.
+Add `sources` entries with actual `resource` references for saved claims; use
+stable IDs when citing claims with matching footnotes. Keep code and requirements
+at their authoritative locations. Optional `generated` describes actual
+authorship, not verification. Add `verified` only for actual confirmation of
+the document's claims against sources, with known actor and explicit-offset
+timestamp as required by the profile. A task's `done`, a passing test, or this
+save operation alone grants neither `verified` nor human review. Omit unknown
+trust, source dates, counts, and authors rather than fill placeholders.
+
+The memory index is a heading-grouped Markdown link listing with descriptions,
+not a table or concept; it has no frontmatter. Keep coverage and validation facts
+in each memory, optionally summarized in its listing description. The primary
+maintains relevant navigation lazily, preserving unrelated entries; lookup alone
+creates nothing. Use file-relative Markdown links by default; also accept
+bundle-root `/` links as defined by the profile. Verify claimed evidence links
+resolve, report missing evidence, and add a reciprocal memory link to the actual
+plan overview's handoff section, not a new plan's navigation index. Do not claim
+full bundle conformance from these checked records; report remaining legacy
+records as a mixed bundle.
 
 Keep memories focused on reusable implementation knowledge, with complete or
 partial coverage matching the verified task outcomes. Link evidence rather than

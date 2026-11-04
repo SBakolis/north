@@ -11,6 +11,7 @@ integrated result, and hand off to saving memory.
 ## Prepare
 
 Load `north-sources` and follow its
+[OKF profile](../north-sources/references/okf-format.md) and
 [plan contract](../north-sources/references/plan-format.md) for selection,
 validation, statuses, and recovery. Without a selector or conversation context,
 look for a sole unfinished plan. If no plan exists, suggest
@@ -20,6 +21,14 @@ Read the selected plan's task files, research, requirements, and current project
 instructions. Load `invoke-memory` before implementation and `subagent-usage`
 for worker assignments, concurrency safety, checkout isolation, and integration.
 Reconcile the plan with actual execution using the contract before dispatch.
+
+For `north_schema: north-plan-v1`, task files own `task_status` and `plan.md`
+owns the synchronized overview; `index.md` is navigation only. Positively
+identified legacy directory tasks retain execution `status` and their detailed
+index remains authoritative; a legacy single-file table remains authoritative.
+Do not infer progress from arbitrary concept lifecycle `status`. Unknown schema,
+conflicting state, or schema/layout mismatches require clarification before writes
+or dispatch. Resume creates no indexes and does not convert a live plan.
 
 ## Progress dependency layers
 
@@ -36,13 +45,18 @@ Within that layer:
 2. Returned work becomes `needs-review`. Review the changes and acceptance
    evidence, execute missing checks, and resolve review findings. Use
    `subagent-usage` to integrate accepted changes; only then set the task to
-   `done` and synchronize the index and any required external progress record.
+   `done` and synchronize the authoritative overview and any required external
+   progress record, not a new plan's navigation index.
 3. Set failures to `blocked` with diagnostics and a next action. Other tasks in
    this layer may finish. Resolve the blocker before returning its task to
    `pending` for a scoped repair; do not repeat an unchanged failed attempt.
 4. Advance only after every task in the active layer is `done`. Reconcile and
    recompute the remaining graph after a revision before dispatching more work.
 
+Only the primary updates shared progress, using the selected schema's progress
+field. Preserve lifecycle, unknown keys, provenance, and history. Record evidence
+invalidated by meaningful changes; neither `done` nor passing implementation
+checks automatically grants document `verified` or human review.
 Keep progress updates serialized. If native parallel execution is unavailable,
 run the same order serially and disclose the limitation. Worktree integration
 must honor the installed commit mode. If a required commit is not authorized,
