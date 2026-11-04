@@ -65,4 +65,5 @@ No unresolved product decisions block execution. T01 defines routine profile det
 - This bootstrap plan intentionally uses the currently installed plan contract. Do not reinterpret its legacy task statuses while changing the contract. The primary retains ownership of its progress records.
 - Final source-tree validation: `cargo test --locked --manifest-path installer/Cargo.toml` passed all 45 tests; Ruby artifact replay passed 249 assertions; focused legacy-extension replay passed. Earlier shell syntax, fmt, clippy, and installation smoke passed on macOS. Graph, references and diff checked before completion commit.
 - Coverage limits: no live Claude runtime, Linux run, upstream viewer, successful full task-completion fixture, or exhaustive OKF certification. Both tool installations and direct-read instruction paths were checked; observed behavior is native OpenCode fixture execution.
-- Next phase: `/north-save open-knowledge-format` (suggested, not invoked).
+- Memory: [Verified implementation knowledge](../../memories/open-knowledge-format.md), saved with complete planned coverage and explicit validation limits against `49013ff`.
+- Next cycle: `/north-plan <next feature prompt>` (suggested, not invoked).
