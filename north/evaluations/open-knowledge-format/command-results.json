@@ -1,0 +1,24 @@
+[
+  {
+    "command": [
+      "python3",
+      "-B",
+      "check.py"
+    ],
+    "cwd": "/private/var/folders/6r/9ct1j5t10yn29560jzlfdxd80000gn/T/opencode/north-okf-evals/legacy-memory",
+    "exit_code": 0,
+    "stdout": "counter behavior passed\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "cwd": "/private/var/folders/6r/9ct1j5t10yn29560jzlfdxd80000gn/T/opencode/north-okf-t05",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

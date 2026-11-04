@@ -1,0 +1,1288 @@
+{
+  "ruby": "ruby 2.6.10p210 (2022-04-12 revision 67958) [universal.arm64e-darwin26]",
+  "psych": "3.1.0",
+  "revision": "69746373ad37f009fc7d5fbd968ed8ef2a8783ab",
+  "checks": [
+    {
+      "check": "snapshot SHA-256 boundaries/north/handoffs/boundary-investigation.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/handoffs/boundary-investigation.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/handoffs/boundary-investigation.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/handoffs/boundary-investigation.md -> ../memories/minimal.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/handoffs/boundary-investigation.md -> ../memories/confirmed.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/handoffs/boundary-investigation.md -> ../plans/missing/plan.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/handoffs/boundary-investigation.md -> ../plans/ambiguous/plan.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/handoffs/boundary-investigation.md -> ../research/input-policy-log.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/handoffs/boundary-investigation.md -> ../../openspec/specs/input/spec.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/north/memories/confirmed.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/memories/confirmed.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/memories/confirmed.md",
+      "passed": true
+    },
+    {
+      "check": "source resource boundaries/north/memories/confirmed.md:minimal",
+      "passed": true
+    },
+    {
+      "check": "existing source boundaries/north/memories/confirmed.md:minimal",
+      "passed": true
+    },
+    {
+      "check": "source footnote boundaries/north/memories/confirmed.md:minimal",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/memories/confirmed.md -> minimal.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/north/memories/minimal.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/memories/minimal.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/memories/minimal.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/memories/minimal.md -> /research/future.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/north/plans/ambiguous/plan.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/plans/ambiguous/plan.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/plans/ambiguous/plan.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/plans/ambiguous/plan.md -> tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/north/plans/ambiguous/tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/plans/ambiguous/tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/plans/ambiguous/tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/north/plans/missing/plan.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/plans/missing/plan.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/plans/missing/plan.md",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/plans/missing/plan.md -> tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/north/plans/missing/tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/plans/missing/tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/plans/missing/tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/north/research/input-policy-log.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/research/input-policy-log.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/research/input-policy-log.md",
+      "passed": true
+    },
+    {
+      "check": "source resource boundaries/north/research/input-policy-log.md:input-policy",
+      "passed": true
+    },
+    {
+      "check": "existing source boundaries/north/research/input-policy-log.md:input-policy",
+      "passed": true
+    },
+    {
+      "check": "source footnote boundaries/north/research/input-policy-log.md:input-policy",
+      "passed": true
+    },
+    {
+      "check": "link boundaries/north/research/input-policy-log.md -> ../../openspec/specs/input/spec.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/north/research/log.md",
+      "passed": true
+    },
+    {
+      "check": "sources list boundaries/north/research/log.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs boundaries/north/research/log.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/openspec/specs/input/spec.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 boundaries/report.json",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 criteria.json",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 fresh-plan/README.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 fresh-plan/north/plans/integer-increment/index.md",
+      "passed": true
+    },
+    {
+      "check": "sources list fresh-plan/north/plans/integer-increment/index.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs fresh-plan/north/plans/integer-increment/index.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/index.md -> plan.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/index.md -> research.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/index.md -> tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/index.md -> tasks/T02-integration.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 fresh-plan/north/plans/integer-increment/plan.md",
+      "passed": true
+    },
+    {
+      "check": "sources list fresh-plan/north/plans/integer-increment/plan.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs fresh-plan/north/plans/integer-increment/plan.md",
+      "passed": true
+    },
+    {
+      "check": "source resource fresh-plan/north/plans/integer-increment/plan.md:request",
+      "passed": true
+    },
+    {
+      "check": "existing source fresh-plan/north/plans/integer-increment/plan.md:request",
+      "passed": true
+    },
+    {
+      "check": "source footnote fresh-plan/north/plans/integer-increment/plan.md:request",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/plan.md -> ../../../README.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/plan.md -> research.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/plan.md -> tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/plan.md -> tasks/T02-integration.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 fresh-plan/north/plans/integer-increment/research.md",
+      "passed": true
+    },
+    {
+      "check": "sources list fresh-plan/north/plans/integer-increment/research.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs fresh-plan/north/plans/integer-increment/research.md",
+      "passed": true
+    },
+    {
+      "check": "source resource fresh-plan/north/plans/integer-increment/research.md:request",
+      "passed": true
+    },
+    {
+      "check": "existing source fresh-plan/north/plans/integer-increment/research.md:request",
+      "passed": true
+    },
+    {
+      "check": "source footnote fresh-plan/north/plans/integer-increment/research.md:request",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/research.md -> plan.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/research.md -> tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/research.md -> tasks/T02-integration.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/research.md -> ../../../README.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "sources list fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/tasks/T01-helper.md -> ../plan.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/tasks/T01-helper.md -> ../research.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "passed": true
+    },
+    {
+      "check": "sources list fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/tasks/T02-integration.md -> ../plan.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/tasks/T02-integration.md -> T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "link fresh-plan/north/plans/integer-increment/tasks/T02-integration.md -> ../research.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 fresh-plan/report.json",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/check.py",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/counter.py",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/north/memories/counter.md",
+      "passed": true
+    },
+    {
+      "check": "sources list legacy-memory/north/memories/counter.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs legacy-memory/north/memories/counter.md",
+      "passed": true
+    },
+    {
+      "check": "source resource legacy-memory/north/memories/counter.md:plan",
+      "passed": true
+    },
+    {
+      "check": "existing source legacy-memory/north/memories/counter.md:plan",
+      "passed": true
+    },
+    {
+      "check": "source resource legacy-memory/north/memories/counter.md:helper-task",
+      "passed": true
+    },
+    {
+      "check": "existing source legacy-memory/north/memories/counter.md:helper-task",
+      "passed": true
+    },
+    {
+      "check": "source resource legacy-memory/north/memories/counter.md:implementation",
+      "passed": true
+    },
+    {
+      "check": "existing source legacy-memory/north/memories/counter.md:implementation",
+      "passed": true
+    },
+    {
+      "check": "source resource legacy-memory/north/memories/counter.md:checks",
+      "passed": true
+    },
+    {
+      "check": "existing source legacy-memory/north/memories/counter.md:checks",
+      "passed": true
+    },
+    {
+      "check": "source resource legacy-memory/north/memories/counter.md:docs-task",
+      "passed": true
+    },
+    {
+      "check": "existing source legacy-memory/north/memories/counter.md:docs-task",
+      "passed": true
+    },
+    {
+      "check": "source footnote legacy-memory/north/memories/counter.md:implementation",
+      "passed": true
+    },
+    {
+      "check": "source footnote legacy-memory/north/memories/counter.md:helper-task",
+      "passed": true
+    },
+    {
+      "check": "source footnote legacy-memory/north/memories/counter.md:plan",
+      "passed": true
+    },
+    {
+      "check": "source footnote legacy-memory/north/memories/counter.md:checks",
+      "passed": true
+    },
+    {
+      "check": "source footnote legacy-memory/north/memories/counter.md:docs-task",
+      "passed": true
+    },
+    {
+      "check": "link legacy-memory/north/memories/counter.md -> ../plans/counter/index.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/north/memories/index.md",
+      "passed": true
+    },
+    {
+      "check": "sources list legacy-memory/north/memories/index.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs legacy-memory/north/memories/index.md",
+      "passed": true
+    },
+    {
+      "check": "link legacy-memory/north/memories/index.md -> counter.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/north/plans/counter/index.md",
+      "passed": true
+    },
+    {
+      "check": "sources list legacy-memory/north/plans/counter/index.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs legacy-memory/north/plans/counter/index.md",
+      "passed": true
+    },
+    {
+      "check": "link legacy-memory/north/plans/counter/index.md -> tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "link legacy-memory/north/plans/counter/index.md -> tasks/T02-docs.md",
+      "passed": true
+    },
+    {
+      "check": "link legacy-memory/north/plans/counter/index.md -> ../../memories/counter.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/north/plans/counter/tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "sources list legacy-memory/north/plans/counter/tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs legacy-memory/north/plans/counter/tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "link legacy-memory/north/plans/counter/tasks/T01-helper.md -> ../index.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/north/plans/counter/tasks/T02-docs.md",
+      "passed": true
+    },
+    {
+      "check": "sources list legacy-memory/north/plans/counter/tasks/T02-docs.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs legacy-memory/north/plans/counter/tasks/T02-docs.md",
+      "passed": true
+    },
+    {
+      "check": "link legacy-memory/north/plans/counter/tasks/T02-docs.md -> ../index.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/north/plans/old-single.md",
+      "passed": true
+    },
+    {
+      "check": "sources list legacy-memory/north/plans/old-single.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs legacy-memory/north/plans/old-single.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 legacy-memory/report.json",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 preferences/north/dry/focused-checks-first.md",
+      "passed": true
+    },
+    {
+      "check": "sources list preferences/north/dry/focused-checks-first.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs preferences/north/dry/focused-checks-first.md",
+      "passed": true
+    },
+    {
+      "check": "source resource preferences/north/dry/focused-checks-first.md:supplied-observations",
+      "passed": true
+    },
+    {
+      "check": "existing source preferences/north/dry/focused-checks-first.md:supplied-observations",
+      "passed": true
+    },
+    {
+      "check": "source footnote preferences/north/dry/focused-checks-first.md:supplied-observations",
+      "passed": true
+    },
+    {
+      "check": "link preferences/north/dry/focused-checks-first.md -> ../skills/focused-checks-first/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 preferences/north/skills/focused-checks-first/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "sources list preferences/north/skills/focused-checks-first/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs preferences/north/skills/focused-checks-first/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "link preferences/north/skills/focused-checks-first/SKILL.md -> ../../dry/focused-checks-first.md",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 preferences/observations.txt",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 preferences/report.json",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 research/north/research/integer-input-policy.md",
+      "passed": true
+    },
+    {
+      "check": "sources list research/north/research/integer-input-policy.md",
+      "passed": true
+    },
+    {
+      "check": "unique source IDs research/north/research/integer-input-policy.md",
+      "passed": true
+    },
+    {
+      "check": "source resource research/north/research/integer-input-policy.md:fixture-policy",
+      "passed": true
+    },
+    {
+      "check": "existing source research/north/research/integer-input-policy.md:fixture-policy",
+      "passed": true
+    },
+    {
+      "check": "source footnote research/north/research/integer-input-policy.md:fixture-policy",
+      "passed": true
+    },
+    {
+      "check": "link research/north/research/integer-input-policy.md -> ../../source.txt",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 research/report.json",
+      "passed": true
+    },
+    {
+      "check": "snapshot SHA-256 research/source.txt",
+      "passed": true
+    },
+    {
+      "check": "only deliberately legacy/invalid format findings",
+      "passed": true
+    },
+    {
+      "check": "fresh unique IDs",
+      "passed": true
+    },
+    {
+      "check": "fresh graph layers",
+      "passed": true
+    },
+    {
+      "check": "fresh task metadata T01",
+      "passed": true
+    },
+    {
+      "check": "task table agrees T01",
+      "passed": true
+    },
+    {
+      "check": "fresh task metadata T02",
+      "passed": true
+    },
+    {
+      "check": "task table agrees T02",
+      "passed": true
+    },
+    {
+      "check": "fresh final review depends on implementation",
+      "passed": true
+    },
+    {
+      "check": "fresh no implementation emitted",
+      "passed": true
+    },
+    {
+      "check": "deliberate missing prerequisite T99",
+      "passed": true
+    },
+    {
+      "check": "blocked boundary emits no result",
+      "passed": true
+    },
+    {
+      "check": "unknown field survives explicit body update",
+      "passed": true
+    },
+    {
+      "check": "legacy extension survives",
+      "passed": true
+    },
+    {
+      "check": "single mapping verification accepted",
+      "passed": true
+    },
+    {
+      "check": "legacy graph and execution status retained",
+      "passed": true
+    },
+    {
+      "check": "legacy missing docs remain unfinished",
+      "passed": true
+    },
+    {
+      "check": "single-file blocked authority retained",
+      "passed": true
+    },
+    {
+      "check": "generated native skill fields retained",
+      "passed": true
+    },
+    {
+      "check": "preference progress separate",
+      "passed": true
+    },
+    {
+      "check": "reported research read-only snapshots equal",
+      "passed": true
+    },
+    {
+      "check": "research final hash north/research/integer-input-policy.md",
+      "passed": true
+    },
+    {
+      "check": "research final hash source.txt",
+      "passed": true
+    },
+    {
+      "check": "initial legacy retrieval maps equal",
+      "passed": true
+    },
+    {
+      "check": "legacy overview original content preserved before appended handoff",
+      "passed": true
+    },
+    {
+      "check": "followup legacy retrieval maps equal",
+      "passed": true
+    },
+    {
+      "check": "legacy final hash check.py",
+      "passed": true
+    },
+    {
+      "check": "legacy final hash counter.py",
+      "passed": true
+    },
+    {
+      "check": "legacy final hash north/memories/counter.md",
+      "passed": true
+    },
+    {
+      "check": "legacy final hash north/memories/index.md",
+      "passed": true
+    },
+    {
+      "check": "legacy final hash north/plans/counter/index.md",
+      "passed": true
+    },
+    {
+      "check": "legacy final hash north/plans/counter/tasks/T01-helper.md",
+      "passed": true
+    },
+    {
+      "check": "legacy final hash north/plans/counter/tasks/T02-docs.md",
+      "passed": true
+    },
+    {
+      "check": "legacy final hash north/plans/old-single.md",
+      "passed": true
+    },
+    {
+      "check": "reciprocal link added in legacy authority",
+      "passed": true
+    },
+    {
+      "check": "boundary historical read-only north/memories/minimal.md",
+      "passed": true
+    },
+    {
+      "check": "boundary historical read-only north/memories/confirmed.md",
+      "passed": true
+    },
+    {
+      "check": "boundary plans unchanged north/plans/missing/plan.md",
+      "passed": true
+    },
+    {
+      "check": "boundary plans unchanged north/plans/missing/tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "boundary plans unchanged north/plans/ambiguous/plan.md",
+      "passed": true
+    },
+    {
+      "check": "boundary plans unchanged north/plans/ambiguous/tasks/T01.md",
+      "passed": true
+    },
+    {
+      "check": "reserved log unchanged",
+      "passed": true
+    },
+    {
+      "check": "minimal authorized update hash",
+      "passed": true
+    },
+    {
+      "check": "OpenSpec remains native",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/architecture-review/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/auto-commit/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/clarify-requirements/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/code-review/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/commit/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/diagnosing-bugs/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/domain-modeling/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/dry-skillify/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/explain-code/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/handoff/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/invoke-memory/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/north-execute/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/north-explore/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/north-plan/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/north-save/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/north-sources/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/prototype/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/research/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/retrospective/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/skill-evaluation/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/subagent-usage/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/test-design/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/unity-ui/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/north-sources/references/okf-format.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/skills/north-sources/references/plan-format.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/claude/instructions/core.md",
+      "passed": true
+    },
+    {
+      "check": "guidance hash assets/opencode/instructions/core.md",
+      "passed": true
+    },
+    {
+      "check": "executed guidance identity north-save",
+      "passed": true
+    },
+    {
+      "check": "executed guidance identity invoke-memory",
+      "passed": true
+    },
+    {
+      "check": "executed guidance identity north-execute",
+      "passed": true
+    },
+    {
+      "check": "executed guidance identity north-sources",
+      "passed": true
+    },
+    {
+      "check": "executed dry-skillify identity",
+      "passed": true
+    },
+    {
+      "check": "core identity opencode",
+      "passed": true
+    },
+    {
+      "check": "core identity claude",
+      "passed": true
+    },
+    {
+      "check": "preference output north/dry/focused-checks-first.md",
+      "passed": true
+    },
+    {
+      "check": "preference output north/skills/focused-checks-first/SKILL.md",
+      "passed": true
+    },
+    {
+      "check": "evaluation report typed",
+      "passed": true
+    },
+    {
+      "check": "evaluation source fixtures",
+      "passed": true
+    },
+    {
+      "check": "evaluation source validation",
+      "passed": true
+    },
+    {
+      "check": "evaluation source profile",
+      "passed": true
+    },
+    {
+      "check": "deliverable link report.md:raw-evidence.json",
+      "passed": true
+    },
+    {
+      "check": "deliverable link report.md:validation.json",
+      "passed": true
+    },
+    {
+      "check": "deliverable link report.md:validate.rb",
+      "passed": true
+    },
+    {
+      "check": "deliverable link report.md:../../../assets/skills/north-sources/references/okf-format.md",
+      "passed": true
+    },
+    {
+      "check": "deliverable link index.md:report.md",
+      "passed": true
+    },
+    {
+      "check": "deliverable link index.md:raw-evidence.json",
+      "passed": true
+    },
+    {
+      "check": "deliverable link index.md:validation.json",
+      "passed": true
+    },
+    {
+      "check": "deliverable link index.md:command-results.json",
+      "passed": true
+    },
+    {
+      "check": "deliverable link index.md:capture.py",
+      "passed": true
+    },
+    {
+      "check": "deliverable link index.md:validate.rb",
+      "passed": true
+    },
+    {
+      "check": "evaluation index listing-only",
+      "passed": true
+    }
+  ],
+  "format_findings_expected": {
+    "boundaries/north/plans/ambiguous/tasks/T01.md": [
+      "invalid lifecycle"
+    ],
+    "legacy-memory/north/plans/counter/index.md": [
+      "index not listing-only"
+    ],
+    "legacy-memory/north/plans/counter/tasks/T01-helper.md": [
+      "missing type"
+    ],
+    "legacy-memory/north/plans/counter/tasks/T02-docs.md": [
+      "missing type"
+    ],
+    "legacy-memory/north/plans/old-single.md": [
+      "missing type"
+    ]
+  },
+  "links": [
+    {
+      "from": "boundaries/north/handoffs/boundary-investigation.md",
+      "target": "../memories/minimal.md",
+      "resolved": "boundaries/north/memories/minimal.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/handoffs/boundary-investigation.md",
+      "target": "../memories/confirmed.md",
+      "resolved": "boundaries/north/memories/confirmed.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/handoffs/boundary-investigation.md",
+      "target": "../plans/missing/plan.md",
+      "resolved": "boundaries/north/plans/missing/plan.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/handoffs/boundary-investigation.md",
+      "target": "../plans/ambiguous/plan.md",
+      "resolved": "boundaries/north/plans/ambiguous/plan.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/handoffs/boundary-investigation.md",
+      "target": "../research/input-policy-log.md",
+      "resolved": "boundaries/north/research/input-policy-log.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/handoffs/boundary-investigation.md",
+      "target": "../../openspec/specs/input/spec.md",
+      "resolved": "boundaries/openspec/specs/input/spec.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/memories/confirmed.md",
+      "target": "minimal.md",
+      "resolved": "boundaries/north/memories/minimal.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/memories/minimal.md",
+      "target": "/research/future.md",
+      "resolved": "boundaries/north/research/future.md",
+      "exists": false,
+      "optional": true
+    },
+    {
+      "from": "boundaries/north/plans/ambiguous/plan.md",
+      "target": "tasks/T01.md",
+      "resolved": "boundaries/north/plans/ambiguous/tasks/T01.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/plans/missing/plan.md",
+      "target": "tasks/T01.md",
+      "resolved": "boundaries/north/plans/missing/tasks/T01.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "boundaries/north/research/input-policy-log.md",
+      "target": "../../openspec/specs/input/spec.md",
+      "resolved": "boundaries/openspec/specs/input/spec.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/index.md",
+      "target": "plan.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/plan.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/index.md",
+      "target": "research.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/research.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/index.md",
+      "target": "tasks/T01-helper.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/index.md",
+      "target": "tasks/T02-integration.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/plan.md",
+      "target": "../../../README.md",
+      "resolved": "fresh-plan/README.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/plan.md",
+      "target": "research.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/research.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/plan.md",
+      "target": "tasks/T01-helper.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/plan.md",
+      "target": "tasks/T02-integration.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/research.md",
+      "target": "plan.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/plan.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/research.md",
+      "target": "tasks/T01-helper.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/research.md",
+      "target": "tasks/T02-integration.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/research.md",
+      "target": "../../../README.md",
+      "resolved": "fresh-plan/README.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "target": "../plan.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/plan.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "target": "../research.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/research.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "target": "../plan.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/plan.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "target": "T01-helper.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/tasks/T01-helper.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "fresh-plan/north/plans/integer-increment/tasks/T02-integration.md",
+      "target": "../research.md",
+      "resolved": "fresh-plan/north/plans/integer-increment/research.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "legacy-memory/north/memories/counter.md",
+      "target": "../plans/counter/index.md",
+      "resolved": "legacy-memory/north/plans/counter/index.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "legacy-memory/north/memories/index.md",
+      "target": "counter.md",
+      "resolved": "legacy-memory/north/memories/counter.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "legacy-memory/north/plans/counter/index.md",
+      "target": "tasks/T01-helper.md",
+      "resolved": "legacy-memory/north/plans/counter/tasks/T01-helper.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "legacy-memory/north/plans/counter/index.md",
+      "target": "tasks/T02-docs.md",
+      "resolved": "legacy-memory/north/plans/counter/tasks/T02-docs.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "legacy-memory/north/plans/counter/index.md",
+      "target": "../../memories/counter.md",
+      "resolved": "legacy-memory/north/memories/counter.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "legacy-memory/north/plans/counter/tasks/T01-helper.md",
+      "target": "../index.md",
+      "resolved": "legacy-memory/north/plans/counter/index.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "legacy-memory/north/plans/counter/tasks/T02-docs.md",
+      "target": "../index.md",
+      "resolved": "legacy-memory/north/plans/counter/index.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "preferences/north/dry/focused-checks-first.md",
+      "target": "../skills/focused-checks-first/SKILL.md",
+      "resolved": "preferences/north/skills/focused-checks-first/SKILL.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "preferences/north/skills/focused-checks-first/SKILL.md",
+      "target": "../../dry/focused-checks-first.md",
+      "resolved": "preferences/north/dry/focused-checks-first.md",
+      "exists": true,
+      "optional": false
+    },
+    {
+      "from": "research/north/research/integer-input-policy.md",
+      "target": "../../source.txt",
+      "resolved": "research/source.txt",
+      "exists": true,
+      "optional": false
+    }
+  ],
+  "fresh_layers": {
+    "T01": 1,
+    "T02": 2
+  },
+  "failures": [
+
+  ],
+  "limits": [
+    "Targeted fixture checks, not exhaustive OKF validation.",
+    "Historical before/after maps are producer-recorded, not independently observed temporal snapshots.",
+    "No root version fixture or index-title collision workflow was executed."
+  ]
+}
