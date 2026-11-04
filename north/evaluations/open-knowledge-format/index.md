@@ -1,5 +1,8 @@
 # Open Knowledge Format evaluation
 
+- [Legacy extension regression](legacy-extension.json) - Retained post-review fixture, original inputs, outputs and repaired guidance.
+- [Legacy extension replay](validate-legacy-extension.rb) - Focused compatibility regression checks.
+
 - [Evaluation report](report.md) - Scope, observed outcomes, replay commands, and unverified acceptance.
 - [Raw evidence](raw-evidence.json) - Fixture inputs/final outputs, producer reports, criteria, session IDs, and guidance snapshots.
 - [Validation results](validation.json) - Replayable targeted YAML, path, graph, and hash checks.

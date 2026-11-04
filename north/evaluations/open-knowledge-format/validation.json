@@ -944,6 +944,10 @@
       "passed": true
     },
     {
+      "check": "deliverable link report.md:legacy-extension.json",
+      "passed": true
+    },
+    {
       "check": "deliverable link report.md:raw-evidence.json",
       "passed": true
     },
@@ -957,6 +961,14 @@
     },
     {
       "check": "deliverable link report.md:../../../assets/skills/north-sources/references/okf-format.md",
+      "passed": true
+    },
+    {
+      "check": "deliverable link index.md:legacy-extension.json",
+      "passed": true
+    },
+    {
+      "check": "deliverable link index.md:validate-legacy-extension.rb",
       "passed": true
     },
     {

@@ -202,7 +202,9 @@ Read legacy records in place; preserve provenance, extensions, history, and
 incoming references. An explicit format update may adapt the selected record;
 ordinary reading or progress updates do not mandate conversion. Never bulk
 migrate unrelated records or infer conversion from a version declaration.
-Use the plan contract's selection/conversion rules for live plans.
+Use the plan contract's selection/conversion rules for live plans. Its explicit
+legacy-extension exception keeps added tasks in the selected legacy format until
+conversion is requested; those records remain legacy, not OKF-certified output.
 
 Claim full bundle conformance only after checking **every** non-reserved Markdown
 file has parseable frontmatter with non-empty `type`, and all reserved files

@@ -43,9 +43,14 @@ Keep task-local tests with their implementation when practical; do not add tasks
 just to create parallel activity. Include a final integration verification task
 depending on every implementation branch.
 
-Validate the graph and compute its layers using the contract. New tasks start
-with `task_status: pending`, or `task_status: blocked` with the consequential
-decision or missing evidence. OKF `status` is lifecycle, not task progress.
+Validate the graph and compute its layers using the contract. In a new-schema
+plan, added tasks start with `task_status: pending`, or `task_status: blocked`
+with the consequential decision or missing evidence. When extending a legacy
+plan, added tasks retain that plan's legacy execution format (`status` in legacy
+directory task files, or the existing single-file table); do not introduce a
+new-schema task into its legacy authority. This explicit compatibility exception
+does not convert the plan or certify it as OKF. In new-schema records, OKF
+`status` is lifecycle, not task progress.
 A delegated `north-planner` returns proposed contents for the primary to save.
 Record any project-required synchronization with external task artifacts.
 

@@ -60,6 +60,27 @@ Consolidation outcomes: Ruby replay exits 0 with no failed assertions; the focus
 
 ## Evidence strength and remaining acceptance gaps
 
+### T06 compatibility repair and regression
+
+Final review found that adding tasks to a legacy plan was underspecified: new-task
+instructions required new-schema metadata while selection retained the legacy
+authority. The primary repaired north-plan and the shared contract/profile to
+keep added tasks in the selected legacy format until explicit conversion.
+
+A fresh native OpenCode run (`ses_e57389237ffePG1ONkCvPgMlTJ`) extended a legacy
+directory with a dependent implementation task and final read-only verifier.
+The existing task, unknown field, seed and acceptance evidence were preserved;
+new tasks use legacy `status`, the detailed index remains authoritative, and
+read-only execution preparation correctly identifies T02 as eligible. No format
+conversion or implementation occurred. Exact original/final bytes, request,
+response, guidance and hashes are retained in [legacy-extension.json](legacy-extension.json).
+Run `ruby north/evaluations/open-knowledge-format/validate-legacy-extension.rb`
+to replay the focused checks against the retained data and current guidance.
+The primary ran it successfully after repair. The earlier 246-assertion archive
+remains evidence of the pre-repair baseline; this supplement covers the changed
+legacy-extension rule. Successful task execution through completion is still not
+claimed by these preparation-only cases.
+
 - Historical before/after hashes are producer-recorded temporal evidence; the consolidator verifies equality and current final hashes, not the past filesystem independently. Initial memory bytes and pre-follow-up report bytes are not retained, only their hashes and report history. The original legacy overview content is verified by removing the appended Handoff section and matching its initial hash. Unknown-field preservation is evidenced by unchanged legacy task hashes and the explicitly updated minimal concept retaining `custom_hint`.
 - Raw session message/tool-event exports were not available through the supplied tools. This archive retains actual final bytes, raw fixture source files, guidance, criteria, and producer requests/responses/tool summaries, not a claim of complete session transcripts or every intermediate output. Replaying agent behavior is not deterministic.
 - Missing optional indexes/root version were exercised. No emitted root `okf_version` declaration, unfamiliar-version consumption, or concept titled Index collision workflow was run. Existing index navigation and the executed Log collision cover related rules only; these additional behavioral cases remain unverified.

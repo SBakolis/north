@@ -135,7 +135,7 @@ decides when a layer may start; `north-execute` owns pipeline layer barriers.
 
 ## Status and evidence
 
-New plan/task records require `north_schema: north-plan-v1`. This discriminator
+New-format plan/task records require `north_schema: north-plan-v1`. This discriminator
 selects the North execution contract independently of OKF version and `type`.
 Tasks require a non-empty `id`, `task_status` from the table below, `depends_on`
 as an ID list, a named `agent`, and `write_scope` as a project-relative path list
@@ -181,6 +181,15 @@ Select authority by layout and metadata, not by filename alone:
 | Legacy single-file plan | Its task table owns metadata/execution status; detail sections own evidence. |
 | Navigation index only | Follow its plan link; missing overview/tasks block execution, not reading. |
 | Competing single-file/directory or two detailed overviews | Ask for authoritative selection unless an explicit selector or recorded conversion resolves it. Do not merge or choose newest. |
+
+When extending a selected legacy plan without explicit conversion, create added
+tasks in that same legacy format: directory tasks keep execution `status` and
+the existing metadata/body structure, without adding `north_schema` or OKF
+lifecycle fields; single-file plans gain rows and detail sections in place.
+Keep their detailed index or single file authoritative, and preserve existing
+IDs, extensions, evidence, and history. This compatibility exception to new
+artifact formatting keeps ordinary revisions resumable; it does not make the
+legacy plan OKF-conformant. Do not mix new-schema tasks into a legacy authority.
 
 Do not infer legacy task state from an arbitrary concept's `status`. Identify a
 legacy task by its membership in a legacy plan and its existing ID, dependency,
