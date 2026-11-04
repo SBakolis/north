@@ -57,9 +57,10 @@ skills remain individually selectable when the pipeline is off. For OpenCode the
 three commands are Markdown wrappers in `commands/`; for Claude Code the pipeline
 skills answer to those slash commands directly, so no wrappers are linked.
 
-`north-sources` supplies shared storage conventions and the plan contract. The
+`north-sources` supplies shared storage conventions, the plan contract, and the
+[OKF profile](../assets/skills/north-sources/references/okf-format.md) on both tools. The
 installer also includes it for standalone research, clarification, delegation,
-handoff, domain modeling, prototype, retrospective, skill evaluation, and
+handoff, domain modeling, architecture review, prototype, retrospective, skill evaluation, and
 preference-learning skills. Those selections do not enable pipeline commands.
 OpenCode links `/retrospective` only while the `retrospective` skill is enabled;
 Claude Code exposes the skill as that command directly.

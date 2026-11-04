@@ -9,7 +9,7 @@ current conversation:
 
 $ARGUMENTS
 
-The selector may be a feature name, plan directory, or plan index path. Load
+The selector may be a feature name, plan directory, plan concept, or legacy/index path. Load
 `north-save` through the native skill tool and follow it. If it is unavailable,
 explain that enabling **North pipeline** in North's installer adds the commands,
 pipeline skills, and their dependencies. Stop until it is available; do not

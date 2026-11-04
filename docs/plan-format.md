@@ -5,9 +5,20 @@ defines directory and task templates, metadata, status meanings, graph validatio
 plan selection, and resume rules. It ships with `north-sources`, which the
 installer includes whenever a consuming skill is selected.
 
-New feature plans use `north/plans/<feature>/index.md`, a research record, and
-linked task files. Existing single-file plans can resume in place. All paths use
-the project's configured North directory.
+New feature plans use `north/plans/<feature>/index.md` for navigation, `plan.md`
+for the overview and task table, `research.md`, and linked task files. Task
+progress uses `task_status`, distinct from OKF lifecycle `status`. Existing
+single-file and legacy index-led plans can resume in place without bulk migration;
+the contract defines how to identify legacy execution status safely. All paths
+use the project's configured North directory; `/north` scaffolds only that directory.
+
+The shared [OKF v0.2 profile](../assets/skills/north-sources/references/okf-format.md)
+governs generated artifacts, including supporting notes and generated preference
+skills, not bundled steering files, repository docs, or authoritative OpenSpec.
+It defines file-relative and bundle-root links, optional evidence-backed
+provenance, and explicit-update compatibility. Mixed legacy/new directories
+must not be reported as fully conformant bundles. References outside the bundle
+remain project evidence and are not included when exporting only North.
 
 The workflow is divided among these owners:
 

@@ -60,7 +60,17 @@ returns proposed content without saving it. Skill evaluation checks observable
 behavior in isolated scenarios; installer checks alone do not establish that a
 skill selects or performs the right work.
 
-The `north-sources` skill owns artifact locations and the shared plan contract.
+The `north-sources` skill owns artifact locations, the shared plan contract, and
+the [OKF v0.2 profile](../assets/skills/north-sources/references/okf-format.md).
+The configured output directory is the bundle root. The profile applies to
+generated project artifacts, including supporting notes and generated preference
+skills, not bundled steering files, repository docs, code, or authoritative
+OpenSpec. File-relative links are the authoring default; consumers also resolve
+bundle-root links. External project evidence is not included in a North-only
+export. Provenance is optional and must reflect observed facts, not inferred
+verification. Legacy records remain readable without bulk migration, and mixed
+legacy/new bundles cannot be assumed fully conformant. `/north` creates only
+the directory; writers maintain optional navigation lazily.
 `invoke-memory` owns implementation-memory retrieval; `north-save` owns its
 persistence. Shared instructions route context lookup and define primary-agent
 ownership and read-only behavior. `dry-skillify` records preference observations in
@@ -94,18 +104,20 @@ structure under the working project's resolved North directory:
 ```text
 north/plans/<feature-slug>/
   index.md
+  plan.md
   research.md
   tasks/
     A-<task-slug>.md
     B-<task-slug>.md
 ```
 
-The index records the goal, context, acceptance criteria, and links to research
-and task files. Each task file owns its dependencies, status, scope, and evidence;
-the index keeps a synchronized overview of task statuses and dependency layers.
+The index lists the plan, research, and tasks with descriptions. `plan.md` records
+the goal, context, acceptance criteria, and synchronized task/dependency table.
+Each task file owns its dependencies, `task_status`, scope, and evidence;
+execution progress is distinct from OKF document lifecycle `status`.
 Stable task IDs and links describe a directed acyclic graph (DAG). Only the
 primary agent edits the plan; subagents return proposed updates. Existing
-single-file plans can resume in place without being rewritten.
+single-file and legacy index-led plans can resume in place without being rewritten.
 
 `/north-execute <feature-slug-or-plan-path>` checks relevant memories, validates
 the DAG, and freezes its topological layers before dispatch. The primary agent

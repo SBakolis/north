@@ -7,10 +7,16 @@ ordinary work.
 
 ## Shared artifact rules
 
-Use `north-sources` for artifact locations and the plan contract when installed.
+Use `north-sources` for artifact locations, its shared OKF profile, and the plan
+contract when installed. Apply the profile to generated North artifacts, not
+bundled steering files, repository docs, or authoritative OpenSpec formats.
 Without it, resolve the working project's configured North output directory or
 `<project-root>/north/`, and preserve authoritative artifacts in their required
-locations. Lookup does not create files.
+locations. New non-reserved Markdown records use YAML with a non-empty `type`;
+keep `index.md`/`log.md` for navigation/history, not concepts. Preserve legacy
+records and native frontmatter; do not bulk migrate or claim mixed bundles fully
+conform. Use file-relative links and only evidence-backed optional provenance.
+Lookup does not create files; `/north` creates only the output directory.
 
 At the start of work, consult relevant existing North context and read applicable
 generated preference skills under `skills/*/SKILL.md` directly. Before

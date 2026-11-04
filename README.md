@@ -87,6 +87,15 @@ statuses, and resuming work. Plans and memories live in the working project,
 honoring its configured North directory. Coordination runs through agent
 instructions and the tool's native subagents.
 
+Generated project artifacts follow the shared [OKF v0.2 profile](assets/skills/north-sources/references/okf-format.md),
+including saved supporting notes and generated preference skills, not bundled
+steering files, repository docs, or OpenSpec. New plans keep navigation in
+`index.md` and the overview/task table in `plan.md`; task progress uses
+`task_status`, separate from document lifecycle. Legacy plans remain readable
+in place without bulk migration. File-relative links remain the default;
+provenance is optional and evidence-backed. Mixed legacy/new bundles are not
+automatically fully conformant. `/north` still creates only the output directory.
+
 ## Skills
 
 Skills use the shared Agent Skills format, so one `assets/skills/` catalog serves

@@ -8,7 +8,7 @@ Execute the North plan selected by these arguments or the current conversation:
 
 $ARGUMENTS
 
-The selector may be a feature name, plan directory, or plan index path. Load
+The selector may be a feature name, plan directory, plan concept, or legacy/index path. Load
 `north-execute` through the native skill tool and follow it, including
 `invoke-memory` before implementation and `subagent-usage` for delegation.
 If a required skill is unavailable, identify it and explain that rerunning

@@ -18,6 +18,12 @@ fail() {
         exit 1
     fi
 }
+check_artifact_contracts() {
+    for reference in plan-format.md okf-format.md; do
+        cmp "$1/skills/north-sources/references/$reference" \
+            "$root/assets/skills/north-sources/references/$reference"
+    done
+}
 
 # The shell entry point works from another directory and forwards its arguments.
 cd "$tmp"
@@ -54,6 +60,7 @@ run --skills commit
 
 # One pipeline selection controls all phase skills, memory invocation, and commands.
 run --skills north-pipeline
+check_artifact_contracts "$config"
 for skill in north-plan north-explore north-execute north-save invoke-memory north-sources clarify-requirements research subagent-usage commit; do
     [ "$(readlink "$config/skills/$skill")" = "$root/assets/skills/$skill" ]
 done
@@ -73,7 +80,9 @@ for option in north-plan north-explore north-execute north-save invoke-memory; d
         [ -L "$config/commands/$command.md" ]
     done
 done
-run --skills research
+run --skills architecture-review,research
+check_artifact_contracts "$config"
+[ -L "$config/skills/architecture-review" ]
 [ -L "$config/skills/research" ]
 for skill in north-plan north-explore north-execute north-save invoke-memory; do
     [ ! -e "$config/skills/$skill" ]
@@ -299,6 +308,7 @@ if run --tool; then exit 1; fi
 mkdir -p "$claude_root"
 printf '# My rules\n' > "$claude_root/CLAUDE.md"
 claude --all
+check_artifact_contracts "$claude_root"
 [ "$(readlink "$claude_root/CLAUDE.md")" = "$root/assets/claude/instructions/core.md" ]
 [ "$(cat "$claude_root/CLAUDE-backup.md")" = '# My rules' ]
 [ ! -e "$claude_root/AGENTS.md" ]
@@ -320,6 +330,10 @@ grep -q '"tool": "claude"' "$claude_root/.north-installation.json"
 # The OpenCode installation is separate and untouched.
 [ ! -e "$config/CLAUDE.md" ]
 [ "$(cat "$config/AGENTS.md")" = 'my instructions' ]
+claude --skills architecture-review
+check_artifact_contracts "$claude_root"
+[ -L "$claude_root/skills/architecture-review" ]
+[ ! -e "$claude_root/skills/north-plan" ]
 claude --skills explain-code
 [ -L "$claude_root/skills/explain-code" ]
 [ ! -e "$claude_root/skills/unity-ui" ]

@@ -44,6 +44,7 @@ fn skill_dependencies(name: &str) -> &'static [&'static str] {
         | "handoff"
         | "dry-skillify"
         | "domain-modeling"
+        | "architecture-review"
         | "prototype"
         | "retrospective"
         | "skill-evaluation" => &["north-sources"],
@@ -906,29 +907,51 @@ mod tests {
     }
 
     #[test]
-    fn shared_plan_contract_is_available_without_enabling_pipeline() {
+    fn shared_artifact_contracts_are_available_with_and_without_pipeline() {
         let repo = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let temp = tempfile::tempdir().unwrap();
-        let config = temp.path().join("config");
-        let contract = "skills/north-sources/references/plan-format.md";
-        let expected = fs::read_to_string(repo.join("assets").join(contract)).unwrap();
-        for name in [
-            "subagent-usage",
-            "handoff",
-            "research",
-            "clarify-requirements",
-            "dry-skillify",
-            "domain-modeling",
-            "prototype",
-            "skill-evaluation",
-        ] {
-            let installation = Installation::load(repo, Tool::OpenCode, &config).unwrap();
-            installation.apply(&BTreeSet::from([name.into()])).unwrap();
-            assert!(config.join("skills").join(name).is_symlink());
-            assert_eq!(fs::read_to_string(config.join(contract)).unwrap(), expected);
-            assert!(!config.join("skills/north-plan").exists());
-            for command in PIPELINE_COMMANDS {
-                assert!(!config.join("commands").join(command).exists());
+        for tool in [Tool::OpenCode, Tool::Claude] {
+            let config = temp.path().join(tool.id());
+            let project_record = temp
+                .path()
+                .join(format!("{}-project/north/notes.md", tool.id()));
+            fs::create_dir_all(project_record.parent().unwrap()).unwrap();
+            fs::write(&project_record, "existing project evidence").unwrap();
+            for name in [
+                NORTH_PIPELINE,
+                "architecture-review",
+                "retrospective",
+                "subagent-usage",
+                "handoff",
+                "research",
+                "clarify-requirements",
+                "dry-skillify",
+                "domain-modeling",
+                "prototype",
+                "skill-evaluation",
+            ] {
+                let installation = Installation::load(repo, tool, &config).unwrap();
+                installation.apply(&BTreeSet::from([name.into()])).unwrap();
+                for reference in ["plan-format.md", "okf-format.md"] {
+                    let contract = Path::new("skills/north-sources/references").join(reference);
+                    assert_eq!(
+                        fs::read_to_string(config.join(&contract)).unwrap(),
+                        fs::read_to_string(repo.join("assets").join(&contract)).unwrap()
+                    );
+                }
+                if name == NORTH_PIPELINE {
+                    assert!(config.join("skills/north-plan").is_symlink());
+                } else {
+                    assert!(config.join("skills").join(name).is_symlink());
+                    assert!(!config.join("skills/north-plan").exists());
+                    for command in PIPELINE_COMMANDS {
+                        assert!(!config.join("commands").join(command).exists());
+                    }
+                }
+                assert_eq!(
+                    fs::read_to_string(&project_record).unwrap(),
+                    "existing project evidence"
+                );
             }
         }
     }
