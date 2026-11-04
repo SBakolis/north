@@ -12,12 +12,12 @@ Research: [Findings and decisions](research.md)
 
 | ID | Task | Depends on | Layer | Status |
 | --- | --- | --- | --- | --- |
-| T01 | [Define shared OKF and compatibility contracts](tasks/T01-contract.md) | — | 1 | pending |
-| T02 | [Adapt planning, execution, and memory skills](tasks/T02-pipeline.md) | T01 | 2 | pending |
-| T03 | [Adapt supporting artifact skills](tasks/T03-supporting-skills.md) | T01 | 2 | pending |
-| T04 | [Align tool instructions, docs, and installation checks](tasks/T04-integration-surfaces.md) | T02, T03 | 3 | pending |
-| T05 | [Evaluate artifact production and legacy consumption](tasks/T05-evaluation.md) | T02, T03, T04 | 4 | pending |
-| T06 | [Verify integrated change](tasks/T06-verification.md) | T01, T02, T03, T04, T05 | 5 | pending |
+| T01 | [Define shared OKF and compatibility contracts](tasks/T01-contract.md) | — | 1 | done |
+| T02 | [Adapt planning, execution, and memory skills](tasks/T02-pipeline.md) | T01 | 2 | done |
+| T03 | [Adapt supporting artifact skills](tasks/T03-supporting-skills.md) | T01 | 2 | done |
+| T04 | [Align tool instructions, docs, and installation checks](tasks/T04-integration-surfaces.md) | T02, T03 | 3 | done |
+| T05 | [Evaluate artifact production and legacy consumption](tasks/T05-evaluation.md) | T02, T03, T04 | 4 | done |
+| T06 | [Verify integrated change](tasks/T06-verification.md) | T01, T02, T03, T04, T05 | 5 | done |
 
 ## Decisions and requirements
 
@@ -58,7 +58,11 @@ No unresolved product decisions block execution. T01 defines routine profile det
 - Resolved North path: `/Users/stamatis/Documents/projects/north/north` (no configured override found).
 - Source branch: `main`; starting commit: `4a3a858` (`feat: Add retrospective skill and /retrospective command`).
 - Initial working tree: clean. No prior North memories, generated preference skills, or plans existed. OpenSpec specs and active changes are empty; no external task artifact needs synchronization.
-- Active layer: none; implementation has not started. No delegated sessions or worktrees.
+- Active layer: none; all six tasks accepted. Re-review resolved the legacy-extension finding. Implementation through `25bbcdb` fast-forwarded into original source branch `main`.
+- Evaluation: [retained workflow evidence](../../evaluations/open-knowledge-format/report.md). Primary replayed 246 assertions successfully. Live Claude/Linux/upstream viewer and optional root-version emission remain outside observed coverage; no full-bundle certification is claimed.
+- Integration checkout used `/private/var/folders/6r/9ct1j5t10yn29560jzlfdxd80000gn/T/opencode/north-okf-integration`, branch `feature/okf-integration`; task checkouts used sibling `north-okf-tNN`, branches `feature/okf-tNN`.
+- All six task-owned worktrees and branches removed after confirming clean state and ancestry in `main`; no active worker remains. Fixture evidence is retained in the evaluation archive.
 - This bootstrap plan intentionally uses the currently installed plan contract. Do not reinterpret its legacy task statuses while changing the contract. The primary retains ownership of its progress records.
-- Planning validation: graph and links checked before delivery; implementation/evaluation checks remain unrun.
-- Next phase: `/north-execute open-knowledge-format`.
+- Final source-tree validation: `cargo test --locked --manifest-path installer/Cargo.toml` passed all 45 tests; Ruby artifact replay passed 249 assertions; focused legacy-extension replay passed. Earlier shell syntax, fmt, clippy, and installation smoke passed on macOS. Graph, references and diff checked before completion commit.
+- Coverage limits: no live Claude runtime, Linux run, upstream viewer, successful full task-completion fixture, or exhaustive OKF certification. Both tool installations and direct-read instruction paths were checked; observed behavior is native OpenCode fixture execution.
+- Next phase: `/north-save open-knowledge-format` (suggested, not invoked).

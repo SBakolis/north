@@ -1,6 +1,6 @@
 ---
 id: T01
-status: pending
+status: done
 depends_on: []
 agent: north-worker
 write_scope: [assets/skills/north-sources/]
@@ -27,13 +27,17 @@ Extend north-sources with a concise, pinned OKF v0.2 profile (a new reference su
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Dispatch/session: `ses_e574efee9ffeoUPJG0SC1wdGlS`, completed.
+Checkout/branch/base commit: `north-okf-t01` temporary worktree / `feature/okf-t01` / `dd182ec` (full parent path in plan).
+Changed files: north-sources SKILL.md, references/plan-format.md, new references/okf-format.md.
+Validation: Worker parsed seven YAML blocks and checked four reference links/six resolution cases. Primary independently parsed example YAML with Ruby Psych; passed. Full diff/profile reviewed against spec and task acceptance.
+Review/integration: Accepted after review; committed and fast-forwarded into integration as `dc54069`. Behavioral validation remains T05.
 Blockers: None known.
 
 ## History
 
 Created during planning; no implementation started.
+
+T06 found ambiguous new-task metadata when extending legacy plans. Primary repair explicitly retains legacy task format under the selected legacy authority; acceptance awaits focused fixture and re-review.
+
+Repair accepted in `25bbcdb`: native fixture preserves legacy authority and extensions; primary replay passed. No downstream contract conflict found in T03/T04.

@@ -1,6 +1,6 @@
 ---
 id: T02
-status: pending
+status: done
 depends_on: [T01]
 agent: north-worker
 write_scope: [assets/skills/north-plan/SKILL.md, assets/skills/north-explore/SKILL.md, assets/skills/north-execute/SKILL.md, assets/skills/north-save/SKILL.md, assets/skills/invoke-memory/SKILL.md, assets/skills/subagent-usage/SKILL.md]
@@ -27,13 +27,17 @@ Make all six pipeline/delegation consumers use the shared profile for writing, s
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Dispatch/session: `ses_e574bc87dffeyWrsiYjEpbgb6P`, completed.
+Checkout/branch/base commit: `north-okf-t02` / `feature/okf-t02` / `dc54069` (temporary parent in plan).
+Changed files: All six scoped SKILL.md files.
+Validation: Worker static header/link checks and new/legacy walkthrough passed; primary reviewed full diff and independently ran git diff --check (passed). Behavioral checks assigned to T05.
+Review/integration: Accepted; `d5bf356` integrated, combined tree `7d721b2`.
 Blockers: None known.
 
 ## History
 
 Created during planning; no implementation started.
+
+T06 legacy-extension finding invalidated unconditional new-task metadata guidance. Primary aligned north-plan with the repaired contract; focused regression pending.
+
+Repair accepted in `25bbcdb`: added legacy tasks use legacy status, graph remains selectable; primary checked emitted metadata and replay passed.

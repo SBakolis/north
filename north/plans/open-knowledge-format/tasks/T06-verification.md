@@ -1,6 +1,6 @@
 ---
 id: T06
-status: pending
+status: done
 depends_on: [T01, T02, T03, T04, T05]
 agent: north-verifier
 write_scope: []
@@ -27,13 +27,15 @@ Read-only acceptance review of the integrated change against the confirmed user 
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
-Blockers: None known.
+Dispatch/session: `ses_e573ba391ffenaJ3XLeI8DJH0K`, first review completed with one P2 finding.
+Checkout/branch/base commit: Integration checkout / `feature/okf-integration` / `ae5cadd`.
+Changed files: No verifier edits; primary repaired T01/T02 and added T05 regression evidence in `25bbcdb`.
+Validation: Verifier inspected baseline and focused repair without mutation. Final primary checks on main: cargo test (45 passed), baseline artifact replay (249 assertions, zero failures), focused legacy-extension replay (passed).
+Review/integration: Same verifier session re-reviewed `25bbcdb`: no remaining actionable findings, bounded acceptance supported. Primary accepted and fast-forwarded implementation to main; six clean merged worktrees/branches removed.
+Blockers: None. Explicit coverage limits retained in evaluation report and index; no cross-runtime or exhaustive conformance claim.
 
 ## History
 
 Created during planning; no implementation started.
+
+First review found legacy task-extension ambiguity; T01/T02 reopened and T05 supplemented. Second review accepted the repair and native regression fixture. Final source-tree checks passed; all task outcomes integrated.

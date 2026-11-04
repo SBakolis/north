@@ -1,6 +1,6 @@
 ---
 id: T05
-status: pending
+status: done
 depends_on: [T02, T03, T04]
 agent: north-worker
 write_scope: [north/evaluations/open-knowledge-format/]
@@ -28,13 +28,17 @@ Provide reproducible evidence that the revised instructions produce valid bundle
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Dispatch/session: Producers `ses_e5745d897ffeZtDTDdQC1PfgIS`, `ses_e5745d894ffeNuweiQRl5M3OpK`, `ses_e57429398ffepEtCK5mSGz2t7u`; consolidation `ses_e57406904ffeFKsjhPE8M51yhS`; all completed.
+Checkout/branch/base commit: `north-okf-t05` / `feature/okf-t05` / `6974637`; isolated fixtures in sibling `north-okf-evals` directory.
+Changed files: Seven files under north/evaluations/open-knowledge-format; raw fixtures/guidance retained in JSON, report/index, capture/replay scripts and command/validation results.
+Validation: Primary inspected report/script and replayed Ruby Psych validation: 246 assertions, zero failures. Native OpenCode producer outputs checked for YAML, links, provenance, status/graph, legacy handling and nonmutation. Staged diff check passed.
+Review/integration: Accepted with explicit bounded coverage; committed/integrated `ae5cadd`. See evaluation report for live-Claude/Linux/root-version/Index-title and historical-evidence limits. These do not establish full upstream or cross-runtime certification.
 Blockers: None known.
 
 ## History
 
 Created during planning; no implementation started.
+
+T06 requested a legacy-directory task-extension fixture. Existing results remain valid for the tested baseline; add regression evidence against repaired T01/T02 before acceptance.
+
+Added native fixture session `ses_e57389237ffePG1ONkCvPgMlTJ` with raw original/final bytes and guidance in legacy-extension.json. Primary ran validate-legacy-extension.rb and baseline validate.rb successfully; accepted supplement in `25bbcdb`. No successful task-completion round-trip claimed.

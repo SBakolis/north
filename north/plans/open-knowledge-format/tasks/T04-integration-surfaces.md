@@ -1,6 +1,6 @@
 ---
 id: T04
-status: pending
+status: done
 depends_on: [T02, T03]
 agent: north-worker
 write_scope: [assets/opencode/instructions/core.md, assets/claude/instructions/core.md, assets/opencode/commands/, assets/claude/commands/, assets/opencode/agents/, assets/claude/agents/, README.md, docs/, installer/src/install.rs, tests/install.sh]
@@ -27,11 +27,11 @@ Expose consistent OKF guidance to OpenCode and Claude Code, including standalone
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Dispatch/session: `ses_e57494f2cffelaEOtODsjCwjNL`, completed.
+Checkout/branch/base commit: `north-okf-t04` / `feature/okf-t04` / `7d721b2` (temporary parent in plan).
+Changed files: Both core instructions; OpenCode execute/save wrappers; README and three docs; installer/src/install.rs; tests/install.sh.
+Validation: Worker ran shell syntax, Rust fmt/clippy, cargo test (45 passed), installation smoke (passed), and diff check. Primary reviewed full diff and independently ran the shared-artifact-contracts installer test (passed, both tools).
+Review/integration: Accepted and fast-forwarded as `6974637`. macOS checks only; Linux remains CI coverage.
 Blockers: None known.
 
 ## History

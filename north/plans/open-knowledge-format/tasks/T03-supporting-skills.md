@@ -1,6 +1,6 @@
 ---
 id: T03
-status: pending
+status: done
 depends_on: [T01]
 agent: north-worker
 write_scope: [assets/skills/dry-skillify/SKILL.md, assets/skills/research/SKILL.md, assets/skills/handoff/SKILL.md, assets/skills/prototype/SKILL.md, assets/skills/skill-evaluation/SKILL.md, assets/skills/retrospective/SKILL.md, assets/skills/clarify-requirements/SKILL.md, assets/skills/domain-modeling/SKILL.md, assets/skills/architecture-review/SKILL.md]
@@ -28,11 +28,11 @@ Route saved North supporting artifacts through the shared profile, with focused 
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Dispatch/session: `ses_e574bc87affetLT4IvxWyPFZiJ`, completed.
+Checkout/branch/base commit: `north-okf-t03` / `feature/okf-t03` / `dc54069` (temporary parent in plan).
+Changed files: All nine scoped SKILL.md files.
+Validation: Worker static scope/header/link/type-route checks passed; primary reviewed full diff and independently ran git diff --check (passed). Behavioral checks assigned to T05.
+Review/integration: Accepted; `d01dd16` merged as `7d721b2`. architecture-review dependency passed to T04.
 Blockers: None known.
 
 ## History
