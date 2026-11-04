@@ -48,5 +48,8 @@ Use an existing relevant requirement or task artifact as the authoritative
 record. Respect the project's OpenSpec workflow and requested editing scope.
 When a separate supporting record is useful, load `north-sources` for its
 location and apply North's shared artifact and ownership rules.
+Use its [OKF profile](../north-sources/references/okf-format.md) with
+`type: Requirements` for saved North supporting notes only; chat summaries and
+authoritative external requirements, including OpenSpec, retain their formats.
 An adequate requirements summary does not introduce a new approval gate before
 already authorized implementation.

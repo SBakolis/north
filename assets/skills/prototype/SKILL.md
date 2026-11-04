@@ -56,5 +56,7 @@ task and commit workflow. Creating a prototype does not by itself authorize a
 commit, publication, deployment, or expansion into production implementation.
 
 When saving experiment notes, load `north-sources` for the prototype location
-and apply the shared artifact rules. Keep runnable files where their tooling
+and apply its [OKF profile](../north-sources/references/okf-format.md) with
+`type: Prototype` to saved North notes, not chat-only results or runnable assets.
+Keep runnable files where their tooling
 requires them and link to them from the notes.

@@ -15,6 +15,9 @@ Load `north-sources` for artifact conventions. Read the user's latest scope,
 constraints, relevant plan, and current checkout. For a North plan, follow its
 [plan contract](../north-sources/references/plan-format.md) to reconcile evidence
 and execution state. Record when state was observed and what remains unknown.
+Link the selected authority: `plan.md` for new plans, the detailed legacy index
+or single-file plan for legacy layouts. Follow navigation indexes rather than
+treating them as execution authorities; reading does not convert the plan.
 
 ## Prepare the handoff
 
@@ -46,3 +49,5 @@ one does not authorize sending it to another person or starting more work.
 Return the handoff in the response unless persistent output is requested or part
 of the established workflow. When saving, use the handoff location from
 `north-sources` and reference the existing plan under the shared artifact rules.
+Apply its [OKF profile](../north-sources/references/okf-format.md) with
+`type: Handoff` to saved North briefs, retaining actual evidence and uncertainty.
