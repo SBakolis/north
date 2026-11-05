@@ -6,11 +6,12 @@ description: Delegate bounded tasks through native subagents, isolate checkouts,
 # Subagent usage
 
 Prefer subagents for bounded research, implementation, and independent review
-when delegation makes meaningful progress possible alongside the primary agent's
-work. Look for independent tasks before doing a substantial change serially.
-Handle trivial edits directly; do not split tightly coupled work merely to create
-parallel activity. Use the native subagent tool (Task in OpenCode, Agent in
-Claude Code) and North's existing agents.
+when compatible assignments can make meaningful progress concurrently with each
+other or the primary agent. Before substantial execution, identify ready
+independent work and prefer concurrent dispatch over serial delegation by habit.
+Handle trivial edits directly and dependency chains serially; do not split tightly
+coupled work merely to fill slots. Use the native subagent tool (Task in OpenCode,
+Agent in Claude Code) and North's existing agents.
 The primary agent owns coordination, Git operations, and final integration;
 workers do not spawn further workers or manage branches themselves.
 
@@ -26,11 +27,28 @@ layer may run.
 For standalone delegation, dispatch independent work after its prerequisites
 are accepted; this skill does not start a pipeline phase.
 
-Use concurrent native subagent calls within the coordinator's limit (default 2).
-Serialize assignments with conflicting reads, writes, generated outputs,
-lockfiles, or test resources, including primary-agent edits. Worktrees isolate
-file writes but do not remove semantic or external-resource conflicts.
+Select compatible assignments within the coordinator's limit (default 2; honor
+explicit lower or higher limits), then launch that set before waiting for any
+result. Use only the native concurrent-call or background mechanisms actually
+available and permitted; do not assume host-specific flags or polling. With
+limit one or unavailable concurrency, proceed serially and briefly report the
+relevant restriction. Unknown active-writer state instead blocks redispatch:
+establish that the writer stopped and reconcile its work under the plan contract.
+
+Shared immutable reads are compatible. Serialize write/read dependencies and
+conflicting writes, generated outputs, lockfiles, or test resources, including
+primary-agent work. Disjoint paths or worktrees alone do not prove independence:
+they do not remove semantic or external-resource conflicts.
 Coordinate scope changes before a worker expands its assignment.
+
+Where native tools permit, use the time while workers run for useful independent
+primary work, such as inspecting stable unrelated code or preparing review
+criteria. Do not duplicate assignments or treat changing outputs as stable
+evidence. Independent reads/checks need not become delegated tasks and may run
+together when their tools and resources permit; serialize checks that mutate
+shared outputs. Read-only reviewers with stable inputs may overlap within the
+same worker limit, but primary acceptance, shared progress updates, and Git
+integration remain serialized.
 
 Give each worker its task ID, goal, relevant context, prerequisite results, allowed
 write scope, acceptance checks, and exact checkout path and branch. Require it to

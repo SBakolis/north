@@ -39,11 +39,14 @@ layer while another task in the active layer remains unfinished.
 Within that layer:
 
 1. Select `pending` tasks with accepted prerequisites present in their assigned
-   checkout. Apply `subagent-usage` to dispatch compatible tasks concurrently
-   within `Max parallel`, queuing excess or conflicting work. Record each launch
-   and set its task to `running` under the contract.
+   checkout. Apply `subagent-usage` to select worthwhile compatible work within
+   `Max parallel` (default 2; honor explicit limits). Record each dispatch and
+   set its task to `running` before launch. Launch the selected set through
+   supported native concurrency before waiting for any result; queue excess or
+   conflicting work rather than launching and awaiting each sibling in turn.
 2. Returned work becomes `needs-review`. Review the changes and acceptance
-   evidence, execute missing checks, and resolve review findings. Use
+   evidence, execute missing checks, and resolve review findings. Serialize
+   primary acceptance, progress updates, and integration. Use
    `subagent-usage` to integrate accepted changes; only then set the task to
    `done` and synchronize the authoritative overview and any required external
    progress record, not a new plan's navigation index.
@@ -52,6 +55,14 @@ Within that layer:
    `pending` for a scoped repair; do not repeat an unchanged failed attempt.
 4. Advance only after every task in the active layer is `done`. Reconcile and
    recompute the remaining graph after a revision before dispatching more work.
+
+When a worker finishes, consider refilling its slot with compatible queued work
+from the same frozen layer without waiting for the other workers. Recheck
+prerequisites and conflicts, including pending review/integration; essential
+coordinator work may take priority. For three compatible siblings at limit two,
+the third may start after either worker finishes, but no later layer may start.
+While workers run, use non-conflicting primary work as described in
+`subagent-usage`; do not consume unaccepted results to bypass the layer barrier.
 
 Only the primary updates shared progress, using the selected schema's progress
 field. Preserve lifecycle, unknown keys, provenance, and history. Record evidence
