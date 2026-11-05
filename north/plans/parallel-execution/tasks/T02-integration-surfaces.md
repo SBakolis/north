@@ -2,7 +2,7 @@
 type: North Task
 north_schema: north-plan-v1
 id: T02
-task_status: pending
+task_status: done
 depends_on: [T01]
 agent: north-worker
 write_scope: [assets/opencode/instructions/core.md, assets/claude/instructions/core.md, README.md, docs/architecture.md, docs/plan-format.md]
@@ -27,11 +27,11 @@ Route both host coordinators to the stronger execution preference and describe i
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Dispatch/session: `ses_e5272b7eeffe0li1t3NEXFk7uR`, completed.
+Checkout/branch/base commit: Shared source `/Users/stamatis/Documents/projects/north` / `main` / `d32898f`; T01 accepted.
+Changed files: Both tool core instructions, README.md, docs/architecture.md, docs/plan-format.md.
+Validation: Worker diff check, 38 local reference checks, core-cue parity and ten unchanged native-header/permission checks passed. Primary reviewed full diff and clarified the cue to say workers cannot delegate further.
+Review/integration: Accepted after primary diff review and staged whitespace check; committed on source main as `9f5f7ca`. No packaging changes; installer suite not rerun for wording-only edits.
 Blockers: None known.
 
 ## History

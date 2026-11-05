@@ -1,0 +1,417 @@
+{
+  "revision": "9f5f7cae81b9612a6d624ae25d36201cd4fcc605",
+  "outputs": {
+    "A": {
+      "task_id": "A",
+      "start": "2026-11-05T21:13:48.600950+00:00",
+      "end": "2026-11-05T21:14:02.760693+00:00",
+      "timestamp_method": "Python datetime.now(timezone.utc).isoformat(); end records completion of audit inspection before report serialization",
+      "checkout": "/Users/stamatis/Documents/projects/north",
+      "branch": "main",
+      "inspected_revisions": [
+        "6d548be020cc37b1a89c07dc381713cb6f5adb59",
+        "9f5f7cae81b9612a6d624ae25d36201cd4fcc605"
+      ],
+      "inspected_files": [
+        "assets/opencode/agents/north-worker.md",
+        "assets/opencode/agents/north-verifier.md",
+        "assets/claude/agents/north-worker.md",
+        "assets/claude/agents/north-verifier.md",
+        "assets/opencode/instructions/core.md",
+        "assets/claude/instructions/core.md"
+      ],
+      "commands_results": [
+        {
+          "command": "python3 -c 'from datetime import datetime,timezone; print(datetime.now(timezone.utc).isoformat())'",
+          "result": "Actual UTC timestamps recorded in start/end; no artificial waiting."
+        },
+        {
+          "command": "pwd; git branch --show-current; git rev-parse HEAD; git status --short",
+          "result": "Confirmed assigned checkout, main, and 9f5f7cae81b9612a6d624ae25d36201cd4fcc605. Existing modifications to parallel-execution plan and T01/T02/T03 task files and untracked north/evaluations/parallel-execution/ preserved; their contents were not read."
+        },
+        {
+          "command": "rg --files assets | rg '(north-worker\\.md|north-verifier\\.md|instructions/core\\.md)$'",
+          "result": "Located the six inspected files."
+        },
+        {
+          "command": "for f in assets/{opencode,claude}/agents/{north-worker,north-verifier}.md assets/{opencode,claude}/instructions/core.md; do echo \"--- $f\"; cat \"$f\"; done",
+          "result": "Read complete agent definitions and both core instruction files."
+        },
+        {
+          "command": "git diff 6d548be HEAD -- assets/opencode/agents assets/claude/agents; git diff --name-only 6d548be HEAD",
+          "result": "No agent changes. Changed paths: README.md, both core instruction files, assets/skills/north-execute/SKILL.md, assets/skills/subagent-usage/SKILL.md, docs/architecture.md, docs/plan-format.md."
+        },
+        {
+          "command": "if [ -d north/memories ]; then find north/memories -maxdepth 2 -type f -name '*.md'; fi",
+          "result": "Listed only index.md and open-knowledge-format.md; no task-relevant implementation memory identified. invoke-memory guidance loaded; no memories edited."
+        },
+        {
+          "command": "git rev-parse 6d548be; git diff --exit-code 6d548be HEAD -- assets/opencode/agents/north-worker.md assets/opencode/agents/north-verifier.md assets/claude/agents/north-worker.md assets/claude/agents/north-verifier.md",
+          "result": "Resolved baseline hash; scoped diff empty and exit code 0."
+        },
+        {
+          "command": "git diff 6d548be HEAD -- assets/opencode/instructions/core.md assets/claude/instructions/core.md",
+          "result": "Both add only the paragraph preferring useful concurrent independent work by the primary, explicitly denying authorization for workers to delegate or start a pipeline phase."
+        }
+      ],
+      "findings": {
+        "exact_permission_fields": {
+          "assets/opencode/agents/north-worker.md": {
+            "mode": "subagent",
+            "permission": {
+              "task": "deny"
+            }
+          },
+          "assets/opencode/agents/north-verifier.md": {
+            "mode": "subagent",
+            "permission": {
+              "edit": "deny",
+              "task": "deny",
+              "bash": {
+                "*": "deny",
+                "git diff*": "allow",
+                "git status*": "allow"
+              }
+            }
+          },
+          "assets/claude/agents/north-worker.md": {
+            "disallowedTools": "Agent"
+          },
+          "assets/claude/agents/north-verifier.md": {
+            "tools": "Read, Grep, Glob, Bash, Skill",
+            "permissionMode": "plan"
+          }
+        },
+        "agent_permissions_changed_since_baseline": false,
+        "worker_nesting": "Both workers prohibit further delegation. OpenCode denies task; Claude disallows Agent. Core concurrency preference applies to the primary and does not authorize worker nesting or pipeline initiation.",
+        "primary_updates": "Only primary edits shared plans and consolidated records, owns status updates and commits, and reviews changes plus actual validation evidence before acceptance or dependent work. Workers return evidence/proposed updates, do not mark tasks done, and leave changes uncommitted. They may not merge, rebase, push, or create/remove worktrees.",
+        "verifier_execution": "Both verifiers remain read-only, cannot delegate, cannot update plans/status, and must distinguish findings from unexecuted checks and ask primary to run missing checks. OpenCode bash permissions allow only git diff* and git status* patterns. Claude exposes Read/Grep/Glob/Bash/Skill with permissionMode plan; body explicitly limits shell to git diff and git status and prohibits tests/builds/other commands. These are declared restrictions, not runtime enforcement test results.",
+        "native_delegation": "Core specifies native OpenCode Task or Claude Agent, not separate CLI processes; no delegation was performed by this audit."
+      },
+      "changed_files": [
+        "/private/var/folders/6r/9ct1j5t10yn29560jzlfdxd80000gn/T/opencode/north-parallel-evals/A.json"
+      ],
+      "unverified": [
+        "Runtime enforcement of permission declarations was not exercised."
+      ],
+      "blockers": []
+    },
+    "B": {
+      "task_id": "B",
+      "parent_task_id": "T03",
+      "evaluation_kind": "independent guidance-based scenario analysis; not runtime scheduler assertions",
+      "started_at_utc": "2026-11-05T21:13:52Z",
+      "start_boundary": "UTC captured immediately before reading scenario guidance; checkout identification occurred just before this timestamp.",
+      "source": {
+        "path": "/Users/stamatis/Documents/projects/north",
+        "branch": "main",
+        "commit": "9f5f7ca",
+        "access": "read-only"
+      },
+      "files_read": [
+        "assets/skills/north-execute/SKILL.md",
+        "assets/skills/subagent-usage/SKILL.md",
+        "assets/skills/north-sources/references/plan-format.md",
+        "assets/skills/north-sources/SKILL.md",
+        "assets/opencode/agents/north-worker.md",
+        "assets/opencode/agents/north-verifier.md",
+        "assets/claude/agents/north-worker.md",
+        "assets/claude/agents/north-verifier.md",
+        "north/memories/index.md"
+      ],
+      "skills_loaded": [
+        "invoke-memory"
+      ],
+      "memory_result": "Index lists only OKF adoption; no relevant prior concurrency implementation memory selected. Current source guidance is authoritative.",
+      "commands_executed": [
+        "pwd; git branch --show-current; git rev-parse --short HEAD; rg --files | rg '(north-execute|subagent-usage|plan-contract|north-worker|north-verifier|north-sources)'",
+        "date -u '+%Y-%m-%dT%H:%M:%SZ'; cat assets/skills/north-execute/SKILL.md assets/skills/subagent-usage/SKILL.md assets/skills/north-sources/references/plan-format.md assets/opencode/agents/north-worker.md assets/opencode/agents/north-verifier.md assets/claude/agents/north-worker.md assets/claude/agents/north-verifier.md",
+        "python3 - <<'PY' [construct this report, capture UTC end via datetime.now(timezone.utc), write only assigned B.json, and parse that file to validate task_id and 12 scenario entries] PY"
+      ],
+      "additional_read_tools": [
+        "read assets/skills/north-sources/SKILL.md",
+        "glob north/memories/*",
+        "read north/memories/index.md"
+      ],
+      "guidance_reference_key": {
+        "E": "assets/skills/north-execute/SKILL.md",
+        "S": "assets/skills/subagent-usage/SKILL.md",
+        "P": "assets/skills/north-sources/references/plan-format.md"
+      },
+      "scenarios": [
+        {
+          "scenario": "three_independent_siblings_cap2",
+          "eligible_work": "Launch two compatible pending siblings together before waiting; consider third as soon as either worker returns.",
+          "must_wait": "Third waits for an available execution slot and conflict/prerequisite recheck, not necessarily acceptance of the returned sibling; later layers wait.",
+          "reason": "E: Progress dependency layers step 1 and slot-refill paragraph explicitly give the three-sibling example. Returned work remains needs-review; pending review/integration may create conflicts."
+        },
+        {
+          "scenario": "later_layer_own_dependency_done",
+          "eligible_work": "Other eligible work in the frozen current layer.",
+          "must_wait": "Later-layer task waits even with its own prerequisite accepted until every active-layer task is done.",
+          "reason": "E: freeze membership and completed-task warning; step 4 requires every task done. P: Graph validation delegates pipeline barriers to north-execute."
+        },
+        {
+          "scenario": "disjoint_paths_shared_output_or_service",
+          "eligible_work": "One conflicting operation at a time; independently safe portions only if their scopes/resources are established.",
+          "must_wait": "Overlapping generated-output writes or conflicting shared-service/test operations wait; separate paths/worktrees do not establish compatibility.",
+          "reason": "S: Assign compatible work serializes generated outputs and test resources, including primary work; semantic/external conflicts survive worktree isolation. P: Graph validation includes semantic dependencies."
+        },
+        {
+          "scenario": "immutable_reads_disjoint_outputs",
+          "eligible_work": "Concurrent work within cap when reads are genuinely immutable and outputs/resources semantically independent.",
+          "must_wait": "Only excess-cap work or any newly found dependency/conflict waits.",
+          "reason": "S: Shared immutable reads are compatible, but disjoint paths alone are insufficient; launch selected set before waiting."
+        },
+        {
+          "scenario": "dependency_chain",
+          "eligible_work": "First ready task; next only after accepted prerequisites are available and applicable layer barrier is met.",
+          "must_wait": "Downstream tasks wait, not merely until predecessor worker returns.",
+          "reason": "S: Handle dependency chains serially. P: done requires primary review and accepted changes available to dependents. E: steps 1-4 enforce acceptance and layers."
+        },
+        {
+          "scenario": "tiny_one_file_change",
+          "eligible_work": "Primary handles the trivial bounded edit directly.",
+          "must_wait": "No artificial splitting/delegation to fill worker slots; dependent checks wait for a stable edit.",
+          "reason": "S: opening paragraph says handle trivial edits directly and do not split tightly coupled work merely to fill slots."
+        },
+        {
+          "scenario": "explicit_cap1",
+          "eligible_work": "One eligible worker at a time, serially; briefly disclose explicit restriction.",
+          "must_wait": "All additional workers/reviewers wait for budget.",
+          "reason": "S: honor explicit lower/higher limits and proceed serially with limit one. E: step 1 honors explicit Max parallel."
+        },
+        {
+          "scenario": "unavailable_native_concurrency",
+          "eligible_work": "Execute the same eligible ordering serially and disclose missing native parallel support.",
+          "must_wait": "Do not invent host flags, polling, or substitute external processes to claim concurrency.",
+          "reason": "S: use only actually available and permitted native mechanisms; E: unavailable native parallel execution runs same order serially."
+        },
+        {
+          "scenario": "unknown_active_writer",
+          "eligible_work": "Establish prior writer stopped and reconcile partial work; unrelated proven-safe work is not inherently prohibited.",
+          "must_wait": "Redispatch of uncertain active task is blocked, including serial retry; do not infer that its slot is free.",
+          "reason": "S: unknown writer blocks redispatch, unlike unavailable concurrency. P: Select and resume explicitly requires stopped writer and reconciliation before retry."
+        },
+        {
+          "scenario": "failed_sibling_while_other_works",
+          "eligible_work": "Other compatible tasks in active layer may finish; primary records blocked diagnostics/next action and investigates safely.",
+          "must_wait": "Later layer waits; failed task cannot be retried unchanged or before blocker resolution and stopped-writer reconciliation where necessary.",
+          "reason": "E: step 3 allows same-layer tasks to finish and requires blocker resolution before scoped pending repair; step 4 retains barrier."
+        },
+        {
+          "scenario": "stable_readonly_reviewers_under_budget",
+          "eligible_work": "Read-only reviewers may overlap on stable inputs within same worker cap, including alongside compatible work.",
+          "must_wait": "Reviewers wait if budget exhausted or inputs changing; primary acceptance, shared progress and integration serialize. Missing checks remain primary responsibility.",
+          "reason": "S: reviewer overlap paragraph explicitly permits this. E: Verify and hand off assigns missing checks to primary. Both tool verifier definitions prohibit edits/delegation and require separating findings from unexecuted checks."
+        },
+        {
+          "scenario": "worker_requested_nested_delegation",
+          "eligible_work": "Worker continues only its assigned scope or reports dependency/blocker to primary for coordination.",
+          "must_wait": "Worker cannot spawn nested workers even if cap has spare capacity.",
+          "reason": "S: primary owns coordination; workers do not spawn further workers. Both worker and verifier definitions say do not delegate further; OpenCode task permission deny and Claude worker disallowedTools Agent reinforce this."
+        }
+      ],
+      "cross_file_consistency": {
+        "contradictory_wording_found": false,
+        "findings": [
+          "Layer barriers are owned by north-execute; subagent-usage standalone prerequisite-based dispatch explicitly does not start a pipeline phase, so it does not override barriers.",
+          "Slot availability follows worker finish, not task done. Return transitions to needs-review; primary reviews/accepts/integrates before done. Same-layer refill is conditional on conflicts including pending integration, not automatically blocked on all reviews.",
+          "Plan contract done definition agrees with execute and both worker definitions: worker reports are evidence, not acceptance.",
+          "Both installations preserve primary-only progress and no nested delegation. Verifier shell limits are explicit in Claude prose and OpenCode permission rules; both return missing-check requests to primary.",
+          "Worktree recommendation is conditional for substantial implementation; immutable read-only review does not require a new worktree."
+        ]
+      },
+      "checks": {
+        "checkout_identity": "PASS: exact requested path, main, 9f5f7ca observed",
+        "scenario_coverage": "12 independent outcomes recorded",
+        "json_validation": "Python json.load assertion passed in writing command",
+        "runtime_concurrency": "NOT TESTED by B; scenarios are normative reasoning only"
+      },
+      "changed_files": [
+        "/private/var/folders/6r/9ct1j5t10yn29560jzlfdxd80000gn/T/opencode/north-parallel-evals/B.json"
+      ],
+      "unverified_acceptance": [
+        "Actual runtime concurrent overlap, scheduler enforcement, and native tool behavior are not established by this read-only scenario evaluation."
+      ],
+      "blockers": [],
+      "scope_statement": "No source/plan edits, delegation, commits, sleeps, polling, criteria.json reads, or other-worker-output reads.",
+      "ended_at_utc": "2026-11-05T21:14:53Z"
+    },
+    "C": {
+      "task_id": "C",
+      "parent_task_id": "T03",
+      "started_at_utc": "2026-11-05T21:15:03Z",
+      "ended_at_utc": "2026-11-05T21:15:24Z",
+      "checkout": {
+        "path": "/Users/stamatis/Documents/projects/north",
+        "branch": "main",
+        "head": "9f5f7cae81b9612a6d624ae25d36201cd4fcc605"
+      },
+      "files": [
+        "README.md",
+        "docs/architecture.md",
+        "docs/plan-format.md"
+      ],
+      "commands": [
+        {
+          "command": "pwd; git branch --show-current; git rev-parse --short HEAD; date -u +%Y-%m-%dT%H:%M:%SZ; git status --short",
+          "result": "Confirmed assigned checkout, main, 9f5f7ca; existing unrelated plan/evaluation changes preserved."
+        },
+        {
+          "command": "functions.read README.md; functions.read docs/architecture.md; functions.read docs/plan-format.md",
+          "result": "Read all three documents in full."
+        },
+        {
+          "command": "python3 inline script: extract inline Markdown destinations with re.finditer, classify URI/anchor/local, resolve local paths relative to each document and check pathlib.Path.exists; scan reference definitions",
+          "result": "38 local destinations exist (37 Markdown documents and one banner image); 2 external URLs; 0 anchors; 0 reference definitions."
+        },
+        {
+          "command": "git show --format=fuller --stat HEAD -- README.md docs/architecture.md docs/plan-format.md; git show HEAD -- README.md docs/architecture.md docs/plan-format.md",
+          "result": "Inspected exact committed parallel-execution description changes in all three documents."
+        },
+        {
+          "command": "date -u +%Y-%m-%dT%H:%M:%SZ; git diff --exit-code -- README.md docs/architecture.md docs/plan-format.md",
+          "result": "Exit 0; audited documents unchanged from assigned commit."
+        }
+      ],
+      "local_reference_audit": {
+        "README.md": {
+          "count": 28,
+          "all_exist": true,
+          "targets": [
+            "assets/north.png",
+            "docs/installation.md",
+            "docs/architecture.md",
+            "docs/plan-format.md",
+            "assets/skills/north-sources/references/okf-format.md",
+            "assets/skills/north-plan/SKILL.md",
+            "assets/skills/north-explore/SKILL.md",
+            "assets/skills/north-execute/SKILL.md",
+            "assets/skills/north-save/SKILL.md",
+            "assets/skills/invoke-memory/SKILL.md",
+            "assets/skills/clarify-requirements/SKILL.md",
+            "assets/skills/diagnosing-bugs/SKILL.md",
+            "assets/skills/test-design/SKILL.md",
+            "assets/skills/code-review/SKILL.md",
+            "assets/skills/architecture-review/SKILL.md",
+            "assets/skills/domain-modeling/SKILL.md",
+            "assets/skills/research/SKILL.md",
+            "assets/skills/prototype/SKILL.md",
+            "assets/skills/handoff/SKILL.md",
+            "assets/skills/skill-evaluation/SKILL.md",
+            "assets/skills/retrospective/SKILL.md",
+            "assets/skills/explain-code/SKILL.md",
+            "assets/skills/unity-ui/SKILL.md",
+            "assets/skills/north-sources/SKILL.md",
+            "assets/skills/dry-skillify/SKILL.md",
+            "assets/skills/subagent-usage/SKILL.md",
+            "assets/skills/auto-commit/SKILL.md",
+            "assets/skills/commit/SKILL.md"
+          ]
+        },
+        "docs/architecture.md": {
+          "count": 3,
+          "all_exist": true,
+          "targets": [
+            "../assets/skills/north-sources/references/okf-format.md",
+            "../assets/skills/north-sources/references/plan-format.md",
+            "plan-format.md"
+          ]
+        },
+        "docs/plan-format.md": {
+          "count": 7,
+          "all_exist": true,
+          "targets": [
+            "../assets/skills/north-sources/references/plan-format.md",
+            "../assets/skills/north-sources/references/okf-format.md",
+            "../assets/skills/north-sources/SKILL.md",
+            "../assets/skills/north-plan/SKILL.md",
+            "../assets/skills/north-execute/SKILL.md",
+            "../assets/skills/subagent-usage/SKILL.md",
+            "../assets/skills/north-save/SKILL.md"
+          ]
+        },
+        "broken": [],
+        "external_not_fetched": [
+          "https://opencode.ai/docs/commands/",
+          "https://code.claude.com/docs/en/skills"
+        ],
+        "anchors": [],
+        "examples_not_links": [
+          "Fenced shell and slash-command examples in README.md",
+          "Inline generated artifact and installation paths, including north/plans/<feature-slug>/ and configuration filenames",
+          "Fenced example directory tree at docs/architecture.md:104-112",
+          "Inline north/plans/<feature>/index.md and related generated artifact filenames at docs/plan-format.md:8-9",
+          "Inline task DAG T01 \u2192 {T02, T03} \u2192 T04 at docs/plan-format.md:33"
+        ]
+      },
+      "findings": [
+        {
+          "topic": "default cap",
+          "consistent": true,
+          "evidence": [
+            "README.md:71-74",
+            "docs/architecture.md:125-126",
+            "docs/plan-format.md:35"
+          ],
+          "detail": "All three state default concurrency two and honor explicit limits."
+        },
+        {
+          "topic": "safe same-layer refill",
+          "consistent": true,
+          "evidence": [
+            "README.md:72-74",
+            "docs/architecture.md:126-128,144-147",
+            "docs/plan-format.md:36-40"
+          ],
+          "detail": "README summarizes queued same-layer refill constrained by conflicts. Architecture and plan-format explicitly require conflict/prerequisite rechecks, allow review/integration priority, and retain serialized primary integration. No claim that disjoint paths alone establish safety."
+        },
+        {
+          "topic": "retained barriers",
+          "consistent": true,
+          "evidence": [
+            "README.md:73-74",
+            "docs/architecture.md:123,128-131",
+            "docs/plan-format.md:33-39"
+          ],
+          "detail": "Whole-layer verification precedes the next layer; detailed documents retain frozen layers and reject early later-layer dispatch."
+        },
+        {
+          "topic": "no automatic scheduler",
+          "consistent": true,
+          "evidence": [
+            "README.md:89-90",
+            "docs/architecture.md:148-150",
+            "docs/plan-format.md:43-44"
+          ],
+          "detail": "Architecture and plan-format explicitly deny an executable scheduler and automatic recovery. README attributes coordination to instructions and native subagents without separately repeating the disclaimer; this is consistent, not contradictory."
+        }
+      ],
+      "limitations": [
+        "Audit verifies documentation consistency and local destination existence, not runtime scheduling behavior or external URL availability."
+      ],
+      "blockers": [],
+      "source_changes": [],
+      "memory_note": "Loaded invoke-memory guidance; this bounded read-only documentation audit did not implement code or consult plans, criteria, memories, or other workers' outputs."
+    },
+    "input": {
+      "revision": "9f5f7ca",
+      "repository": "/Users/stamatis/Documents/projects/north",
+      "output_rule": "Each assignment writes its own named JSON report only; source files are read-only.",
+      "coordination": "Primary dispatches A and B, then C as budget permits. No nested delegation or commits."
+    }
+  },
+  "evaluated_guidance": {
+    "assets/skills/north-execute/SKILL.md": "---\nname: north-execute\ndescription: Progress a saved North implementation plan through dependency layers, reviewing each layer before advancing. Use for /north-execute or resuming a North feature implementation.\n---\n\n# North execute\n\nOwn the pipeline lifecycle: select a plan, progress its tasks, verify the\nintegrated result, and hand off to saving memory.\n\n## Prepare\n\nLoad `north-sources` and follow its\n[OKF profile](../north-sources/references/okf-format.md) and\n[plan contract](../north-sources/references/plan-format.md) for selection,\nvalidation, statuses, and recovery. Without a selector or conversation context,\nlook for a sole unfinished plan. If no plan exists, suggest\n`/north-plan <feature prompt>`.\n\nRead the selected plan's task files, research, requirements, and current project\ninstructions. Load `invoke-memory` before implementation and `subagent-usage`\nfor worker assignments, concurrency safety, checkout isolation, and integration.\nReconcile the plan with actual execution using the contract before dispatch.\n\nFor `north_schema: north-plan-v1`, task files own `task_status` and `plan.md`\nowns the synchronized overview; `index.md` is navigation only. Positively\nidentified legacy directory tasks retain execution `status` and their detailed\nindex remains authoritative; a legacy single-file table remains authoritative.\nDo not infer progress from arbitrary concept lifecycle `status`. Unknown schema,\nconflicting state, or schema/layout mismatches require clarification before writes\nor dispatch. Resume creates no indexes and does not convert a live plan.\n\n## Progress dependency layers\n\nStart at the first unfinished layer computed by the contract. Freeze its\nmembership before launching work. A completed task does not unlock a later\nlayer while another task in the active layer remains unfinished.\n\nWithin that layer:\n\n1. Select `pending` tasks with accepted prerequisites present in their assigned\n   checkout. Apply `subagent-usage` to select worthwhile compatible work within\n   `Max parallel` (default 2; honor explicit limits). Record each dispatch and\n   set its task to `running` before launch. Launch the selected set through\n   supported native concurrency before waiting for any result; queue excess or\n   conflicting work rather than launching and awaiting each sibling in turn.\n2. Returned work becomes `needs-review`. Review the changes and acceptance\n   evidence, execute missing checks, and resolve review findings. Serialize\n   primary acceptance, progress updates, and integration. Use\n   `subagent-usage` to integrate accepted changes; only then set the task to\n   `done` and synchronize the authoritative overview and any required external\n   progress record, not a new plan's navigation index.\n3. Set failures to `blocked` with diagnostics and a next action. Other tasks in\n   this layer may finish. Resolve the blocker before returning its task to\n   `pending` for a scoped repair; do not repeat an unchanged failed attempt.\n4. Advance only after every task in the active layer is `done`. Reconcile and\n   recompute the remaining graph after a revision before dispatching more work.\n\nWhen a worker finishes, consider refilling its slot with compatible queued work\nfrom the same frozen layer without waiting for the other workers. Recheck\nprerequisites and conflicts, including pending review/integration; essential\ncoordinator work may take priority. For three compatible siblings at limit two,\nthe third may start after either worker finishes, but no later layer may start.\nWhile workers run, use non-conflicting primary work as described in\n`subagent-usage`; do not consume unaccepted results to bypass the layer barrier.\n\nOnly the primary updates shared progress, using the selected schema's progress\nfield. Preserve lifecycle, unknown keys, provenance, and history. Record evidence\ninvalidated by meaningful changes; neither `done` nor passing implementation\nchecks automatically grants document `verified` or human review.\nKeep progress updates serialized. If native parallel execution is unavailable,\nrun the same order serially and disclose the limitation. Worktree integration\nmust honor the installed commit mode. If a required commit is not authorized,\nuse a compatible shared checkout where practical or report the integration\nblocker; do not silently change commit mode.\n\n## Verify and hand off\n\nComplete the planned final integration checks on a stable combined tree.\nThe read-only verifier reviews supplied evidence; the primary executes missing\nchecks. Apply `subagent-usage` for source-branch delivery when worktrees were used.\n\nReport completion only when all required tasks meet the contract's `done`\nconditions. Record the final evidence and limitations, link the plan, and suggest\n`/north-save <feature>`. If blocked, report unfinished IDs and the next resume\naction; final memory follows completion. An explicitly requested early\n`/north-save` may record a verified subset as partial memory.\nDo not start another phase automatically.\n",
+    "assets/skills/subagent-usage/SKILL.md": "---\nname: subagent-usage\ndescription: Delegate bounded tasks through native subagents, isolate checkouts, and integrate accepted changes into the original source branch. Use when work benefits from delegation or Git worktree coordination; north-execute owns the pipeline lifecycle.\n---\n\n# Subagent usage\n\nPrefer subagents for bounded research, implementation, and independent review\nwhen compatible assignments can make meaningful progress concurrently with each\nother or the primary agent. Before substantial execution, identify ready\nindependent work and prefer concurrent dispatch over serial delegation by habit.\nHandle trivial edits directly and dependency chains serially; do not split tightly\ncoupled work merely to fill slots. Use the native subagent tool (Task in OpenCode,\nAgent in Claude Code) and North's existing agents.\nThe primary agent owns coordination, Git operations, and final integration;\nworkers do not spawn further workers or manage branches themselves.\n\n## Assign compatible work\n\nLoad `north-sources` and use its\n[OKF profile](../north-sources/references/okf-format.md) and\n[plan contract](../north-sources/references/plan-format.md) for graph validation,\ntask evidence, and recovery. For multiple delegated tasks, create or reuse a plan\nunder that contract; a separate planning phase is optional outside the pipeline.\nFollow the active coordinator's ordering: `north-execute` decides which pipeline\nlayer may run.\nFor standalone delegation, dispatch independent work after its prerequisites\nare accepted; this skill does not start a pipeline phase.\n\nSelect compatible assignments within the coordinator's limit (default 2; honor\nexplicit lower or higher limits), then launch that set before waiting for any\nresult. Use only the native concurrent-call or background mechanisms actually\navailable and permitted; do not assume host-specific flags or polling. With\nlimit one or unavailable concurrency, proceed serially and briefly report the\nrelevant restriction. Unknown active-writer state instead blocks redispatch:\nestablish that the writer stopped and reconcile its work under the plan contract.\n\nShared immutable reads are compatible. Serialize write/read dependencies and\nconflicting writes, generated outputs, lockfiles, or test resources, including\nprimary-agent work. Disjoint paths or worktrees alone do not prove independence:\nthey do not remove semantic or external-resource conflicts.\nCoordinate scope changes before a worker expands its assignment.\n\nWhere native tools permit, use the time while workers run for useful independent\nprimary work, such as inspecting stable unrelated code or preparing review\ncriteria. Do not duplicate assignments or treat changing outputs as stable\nevidence. Independent reads/checks need not become delegated tasks and may run\ntogether when their tools and resources permit; serialize checks that mutate\nshared outputs. Read-only reviewers with stable inputs may overlap within the\nsame worker limit, but primary acceptance, shared progress updates, and Git\nintegration remain serialized.\n\nGive each worker its task ID, goal, relevant context, prerequisite results, allowed\nwrite scope, acceptance checks, and exact checkout path and branch. Require it to\nconfirm that checkout before editing and return changed files, actual validation\nresults, and blockers. Review returned changes before marking a task done.\n\nInclude the resolved artifact root, exact authoritative overview and task paths,\nand selected schema in each assignment. New `north-plan-v1` tasks use\n`task_status` with a `plan.md` overview; legacy directory tasks use execution\n`status` with their existing detailed index, and legacy single-file plans retain\ntheir task table. A navigation index is not the overview. Resolve ambiguous\nschema/state through the contract before dispatch, not by guessing lifecycle.\nWorkers return evidence and proposed progress updates; only the primary edits\nshared plans or navigation. Preserve unknown keys, provenance, and history during\nupdates; acceptance or `done` does not itself add document verification or human\nreview. Do not convert legacy plans as a delegation side effect.\n\n## Prefer worktrees for implementation\n\nFor substantial delegated implementation, prefer separate Git worktrees, especially\nwhen multiple workers would otherwise write to one checkout. Read-only exploration\nand review generally need no new worktree. Use a shared checkout when isolation\nis unavailable or disproportionate, and serialize conflicting work there.\n\nBefore creating worktrees, record the source checkout, original source branch,\nstarting commit, and existing local changes in the plan. The source branch is\nthe branch where the requested work began; do not substitute the default branch.\nIf HEAD is detached and no intended target can be established from context, resolve\nthe integration target before choosing a source branch.\n\nThe primary agent creates a dedicated integration branch/worktree from the source\ncommit and task branches/worktrees from the appropriate verified integration\ncommit. Follow repository branch conventions, using `feature/` otherwise. Record\neach task's worktree, branch, and base commit. Use distinct paths and branches;\nnative subagent sessions alone do not provide isolation. Share the authoritative\nplan's location so workers do not maintain competing plan copies.\n\nEnsure dependent worktrees contain the accepted prerequisite commits before\ndispatch. Never assume uncommitted source changes are present in a new worktree.\nIf prerequisites depend on local edits, preserve them and establish an explicit,\nreviewable base that includes only the relevant changes before proceeding. Do not\nsilently stash, discard, or commit unrelated user work.\n\n## Integrate and finish on the source branch\n\nTreat merging the completed implementation back into the recorded source branch\nas part of delivery, subject to explicit user and repository Git restrictions.\nFollow the installed `commit` or `auto-commit` mode when creating task commits.\nDo not stop with finished work stranded on task branches when local integration\nis permitted. Local integration does not imply permission to push or publish.\n\nWorkers leave their edits uncommitted for review. The primary agent reviews the\ndiff and evidence, stages only accepted task changes, and commits them on the\ntask branch. Merge accepted task branches into the integration branch in dependency\norder. Make those commits available to downstream tasks before marking their\nprerequisites done. Record commit IDs and integration evidence in the plan.\n\nSerialize merges. Inspect conflicts and resolve them against the task requirements;\nuse `north-conflict-resolver` for a bounded conflict assignment when useful. Do not\nblindly choose one side. Re-run affected checks after conflict resolution and\nvalidate the stable combined implementation before merging it into the source.\n\nBefore the final merge, recheck the source branch and working tree. If the source\nhas advanced, incorporate its current commits into the integration branch and\nrepeat affected validation. Preserve existing source edits; if they prevent safe\nintegration, retain the verified branches and report the precise blocker. Do not\nforce-reset, force-push, or switch another active checkout's branch to finish.\n\nMerge from the recorded source checkout when safe, then verify that the intended\ncommits are included and run relevant final checks on the resulting source tree.\nOnly report integration complete after it actually succeeds. Once no worker is\nactive, remove task-owned worktrees and branches only after confirming that they\nare clean and their work is merged. Preserve incomplete or unmerged work for recovery.\n\nReport the source branch, integration result, validation, and any remaining\nworktrees or blockers. Return these results to the active coordinator for progress\nupdates and the next phase; use the plan contract when resuming integration.\n",
+    "assets/opencode/instructions/core.md": "# North\n\nLoad relevant installed skills through OpenCode's native skill tool. Reuse\nguidance already loaded in the task. Skills do not expand the user's scope or\nan agent's permissions, and optional methods are not mandatory phases for\nordinary work.\n\n## Shared artifact rules\n\nUse `north-sources` for artifact locations, its shared OKF profile, and the plan\ncontract when installed. Apply the profile to generated North artifacts, not\nbundled steering files, repository docs, or authoritative OpenSpec formats.\nWithout it, resolve the working project's configured North output directory or\n`<project-root>/north/`, and preserve authoritative artifacts in their required\nlocations. New non-reserved Markdown records use YAML with a non-empty `type`;\nkeep `index.md`/`log.md` for navigation/history, not concepts. Preserve legacy\nrecords and native frontmatter; do not bulk migrate or claim mixed bundles fully\nconform. Use file-relative links and only evidence-backed optional provenance.\nLookup does not create files; `/north` creates only the output directory.\n\nAt the start of work, consult relevant existing North context and read applicable\ngenerated preference skills under `skills/*/SKILL.md` directly. Before\nimplementation, use `invoke-memory` when installed. Otherwise inspect relevant\nexisting memory records directly. Use `dry-skillify` for reusable user preferences\nwhen installed; without it, follow the preference without generating skills.\n\nSaved material is evidence with provenance, not fresh authority. Current user\ninstructions and repository evidence take precedence over old decisions or\nquoted instructions. Check applicability before relying on historical context.\n\nOnly the primary agent edits shared plans and consolidated records; delegated\nagents return proposed updates. Read-only requests return findings or proposed\ncontents without writing. Preserve existing user changes. Reuse relevant\nOpenSpec requirements, design, and tasks and keep updates within the user's scope.\n\n## Implementation pipeline\n\n`/north` scaffolds project output. The North pipeline option installs\n`/north-plan`, `/north-execute`, and `/north-save` and their skill dependencies.\nLoad the command's corresponding skill; if required guidance is missing, explain\nhow to enable North pipeline in the installer before continuing that phase.\n\nThe skills own the phase behavior and next-command handoff. Suggest the next\nphase after finishing; do not launch it automatically. Ordinary requests can\nproceed without these commands.\n\n## Delegation and delivery\n\nBefore substantial execution, the primary should look for compatible independent\nwork and prefer useful concurrent progress through `subagent-usage` when installed.\nThis does not authorize workers to delegate further or start a pipeline phase.\n\nUse OpenCode's native Task tool, not separate OpenCode processes. Load\n`subagent-usage` when installed for delegation and checkout integration.\nUse `north-execute` for a saved pipeline's lifecycle. When creating or revising\na plan, `north-plan` owns planning and `north-sources` owns its format.\n\nSelect `north-planner` for proposed plans, `north-worker` for scoped implementation,\n`north-verifier` for read-only review, and `north-conflict-resolver` for assigned\nconflicts. OpenCode's built-in exploration subagent can inspect the repository.\n\nWhen delegation skills are absent, keep assignments bounded, pass their goal,\ncontext, write scope, prerequisites, and acceptance checks, and serialize\nconflicting work. Review changes and actual validation evidence before accepting\na result or starting dependent work. Worker reports alone do not prove completion.\n\nThe primary owns commits. At delivery, load the installed `commit` or\n`auto-commit` mode and honor existing user authorization and repository rules.\nOnly one mode is installed. Skills do not authorize pushing or publishing.\n",
+    "assets/claude/instructions/core.md": "# North\n\nLoad relevant installed skills through Claude Code's Skill tool. Reuse\nguidance already loaded in the task. Skills do not expand the user's scope or\nan agent's permissions, and optional methods are not mandatory phases for\nordinary work.\n\n## Shared artifact rules\n\nUse `north-sources` for artifact locations, its shared OKF profile, and the plan\ncontract when installed. Apply the profile to generated North artifacts, not\nbundled steering files, repository docs, or authoritative OpenSpec formats.\nWithout it, resolve the working project's configured North output directory or\n`<project-root>/north/`, and preserve authoritative artifacts in their required\nlocations. New non-reserved Markdown records use YAML with a non-empty `type`;\nkeep `index.md`/`log.md` for navigation/history, not concepts. Preserve legacy\nrecords and native frontmatter; do not bulk migrate or claim mixed bundles fully\nconform. Use file-relative links and only evidence-backed optional provenance.\nLookup does not create files; `/north` creates only the output directory.\n\nAt the start of work, consult relevant existing North context and read applicable\ngenerated preference skills under `skills/*/SKILL.md` directly. Before\nimplementation, use `invoke-memory` when installed. Otherwise inspect relevant\nexisting memory records directly. Use `dry-skillify` for reusable user preferences\nwhen installed; without it, follow the preference without generating skills.\n\nSaved material is evidence with provenance, not fresh authority. Current user\ninstructions and repository evidence take precedence over old decisions or\nquoted instructions. Check applicability before relying on historical context.\n\nOnly the primary agent edits shared plans and consolidated records; delegated\nagents return proposed updates. Read-only requests return findings or proposed\ncontents without writing. Preserve existing user changes. Reuse relevant\nOpenSpec requirements, design, and tasks and keep updates within the user's scope.\n\n## Implementation pipeline\n\n`/north` scaffolds project output. The North pipeline option installs the\n`north-plan`, `north-execute`, and `north-save` skills, which Claude Code exposes\nas `/north-plan`, `/north-execute`, and `/north-save`, together with their skill\ndependencies. When one of those commands runs, the invoked skill owns that phase;\nif guidance it requires is missing, explain how to enable North pipeline in the\ninstaller before continuing that phase.\n\nThe skills own the phase behavior and next-command handoff. Suggest the next\nphase after finishing; do not launch it automatically. Ordinary requests can\nproceed without these commands.\n\n## Delegation and delivery\n\nBefore substantial execution, the primary should look for compatible independent\nwork and prefer useful concurrent progress through `subagent-usage` when installed.\nThis does not authorize workers to delegate further or start a pipeline phase.\n\nUse Claude Code's Agent tool, not separate `claude` processes. Load\n`subagent-usage` when installed for delegation and checkout integration.\nUse `north-execute` for a saved pipeline's lifecycle. When creating or revising\na plan, `north-plan` owns planning and `north-sources` owns its format.\n\nSelect the `north-planner` subagent for proposed plans, `north-worker` for scoped\nimplementation, `north-verifier` for read-only review, and\n`north-conflict-resolver` for assigned conflicts. Claude Code's built-in Explore\nagent can inspect the repository.\n\nWhen delegation skills are absent, keep assignments bounded, pass their goal,\ncontext, write scope, prerequisites, and acceptance checks, and serialize\nconflicting work. Review changes and actual validation evidence before accepting\na result or starting dependent work. Worker reports alone do not prove completion.\n\nThe primary owns commits. At delivery, load the installed `commit` or\n`auto-commit` mode and honor existing user authorization and repository rules.\nOnly one mode is installed. Skills do not authorize pushing or publishing.\n"
+  },
+  "sha256": {
+    "assets/skills/north-execute/SKILL.md": "6a13bb9a1bd7f0f1f23798ace1d28687a1ad90e4484b9c4b7c7bc4799ba7aa83",
+    "assets/skills/subagent-usage/SKILL.md": "fa8bb2ae40040400cf9d6f378dd59b95180c2ee504436a8d5b3826f8ab7cb295",
+    "assets/opencode/instructions/core.md": "ecbd944a679b67104d08c5dabac337c82c9ff534d634b425150704a0aec0d568",
+    "assets/claude/instructions/core.md": "bdbaf413c4f9b41edfaa1727ed60e9ac5b9ce920f56f6620c8b286ac5ff83445"
+  }
+}

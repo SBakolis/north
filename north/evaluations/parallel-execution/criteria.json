@@ -1,0 +1,41 @@
+{
+  "revision": "9f5f7ca",
+  "mode": "Primary-coordinated native OpenCode invocation plus separately labeled scenario analysis",
+  "native_case": {
+    "layer": ["A", "B", "C"],
+    "max_parallel": 2,
+    "inputs": "Stable committed skill, core and agent instruction files; all accesses read-only",
+    "outputs": "Separate temporary JSON reports, no shared writers",
+    "A": "Audit tool-specific worker and verifier permission boundaries",
+    "B": "Analyze concrete execution scenarios against revised owning skills",
+    "C": "Audit user-facing guidance and local reference targets",
+    "expected": [
+      "Launch A and B through supported native background calls before waiting for either result",
+      "Queue C until a completion frees a slot; if another worker remains active, demonstrate safe same-layer refill",
+      "At most two live native children; each assignment once",
+      "Primary may validate stable metadata during active workers, without modifying their inputs or outputs",
+      "Review all three artifacts before T03 acceptance and later T04 dispatch"
+    ],
+    "timing_rule": "No sleeps, artificial delays or polling to manufacture overlap. Capture actual launch handles, notifications and worker-recorded UTC start/end times. If workers finish too quickly for refill overlap, report eligibility only rather than fabricate evidence."
+  },
+  "scenario_cases": [
+    "Three compatible siblings, limit two; accepted prerequisites, no resource conflict",
+    "Pending later-layer task whose own dependency is done but active layer has unfinished sibling",
+    "Distinct file paths with a shared generated output or external service",
+    "Shared immutable source reads and disjoint outputs",
+    "Genuine dependency chain",
+    "Tiny one-file change",
+    "Explicit Max parallel one",
+    "Native concurrency unavailable",
+    "Unknown active writer state",
+    "Failure in one sibling while another remains active",
+    "Read-only reviewers of stable inputs with available budget",
+    "Worker asked to create nested subagents"
+  ],
+  "limits": [
+    "Scenario decisions are static reasoning, not executed host failures or unsafe writes",
+    "This does not establish automatic skill routing or causal improvement over a baseline",
+    "No speed/cost benchmark or live Claude runtime claim",
+    "Existing worker permissions remain unchanged; primary owns native dispatch and evidence consolidation"
+  ]
+}

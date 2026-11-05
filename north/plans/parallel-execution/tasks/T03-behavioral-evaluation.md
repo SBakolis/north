@@ -2,7 +2,7 @@
 type: North Task
 north_schema: north-plan-v1
 id: T03
-task_status: pending
+task_status: done
 depends_on: [T01, T02]
 agent: north-worker
 write_scope: [north/evaluations/parallel-execution/]
@@ -29,11 +29,11 @@ Retain meaningful evidence that revised guidance encourages concurrent work and 
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Dispatch/session: A `ses_e52708321ffeZWUwLoL9ww1kEA`, B `ses_e5270831affeivgWHpoJn8On0R`, C `ses_e526f5d66ffekDe4sYXD5otx6C`; primary dispatched A/B together and launched queued C after A's completion notification, before B's completion notification. Full trace in evaluation evidence.
+Checkout/branch/base commit: Source `main` at `9f5f7ca` as immutable read input; disjoint JSON output files under temporary `north-parallel-evals` directory.
+Changed files: Preregistered criteria, primary event trace and replay checker under north/evaluations/parallel-execution; worker outputs isolated in temporary north-parallel-evals directory.
+Validation: Primary plan graph/state check and unchanged legacy-extension replay passed. A/B reports reviewed; worker permission definitions and plan contract independently confirmed unchanged. Trace-checker synthetic controls reject cap overflow, duplicate dispatch and premature acceptance.
+Review/integration: Accepted after all three reports were reviewed and final replay, three rejection controls, source/hash identity, UTC intervals, JSON/YAML, 58 local links and graph/state checks passed. Durable [report](../../../evaluations/parallel-execution/report.md), raw prompts, outputs, guidance snapshots and trace retained in source checkout. A/B work overlapped; B/C work did not, despite refill preceding B's notification. No runtime pass claimed for static negative cases.
 Blockers: None known; native execution capability checked when evaluation starts.
 
 ## History

@@ -1,0 +1,18 @@
+{
+  "revision": "9f5f7ca",
+  "max_parallel": 2,
+  "events": [
+    {"sequence": 1, "event": "launch_batch", "tasks": ["A", "B"], "mechanism": "multi_tool_use.parallel wrapping two native functions.subagent calls with background=true", "sessions": {"A": "ses_e52708321ffeZWUwLoL9ww1kEA", "B": "ses_e5270831affeivgWHpoJn8On0R"}, "result": "Both launch calls returned background handles; no completion notification received before both launches were issued", "queued": ["C"]},
+    {"sequence": 2, "event": "primary_independent_work", "work": "Parsed active plan metadata/graph and criteria budget; replayed unchanged legacy-extension contract regression; authored this trace replay over primary-owned evidence", "result": "Plan/state/budget checks and legacy regression passed; no worker inputs or outputs modified"},
+    {"sequence": 3, "event": "completion_notification", "task": "A", "session": "ses_e52708321ffeZWUwLoL9ww1kEA", "reported": "Permission audit report available; no repository changes", "other_outstanding": ["B"]},
+    {"sequence": 4, "event": "dispatch_prepared", "task": "C", "scope": "Read-only README/architecture/plan guide with its own temporary C.json output", "budget": "One slot freed by A; B still outstanding; no source mutation, shared-output or prerequisite conflict"},
+    {"sequence": 5, "event": "launch", "task": "C", "session": "ses_e526f5d66ffekDe4sYXD5otx6C", "mechanism": "native functions.subagent background=true", "other_outstanding": ["B"]},
+    {"sequence": 6, "event": "completion_notification", "task": "B", "session": "ses_e5270831affeivgWHpoJn8On0R", "reported": "Twelve scenario outcomes available; no contradictory guidance found"},
+    {"sequence": 7, "event": "primary_review", "task": "A", "result": "Read complete report and independently confirmed worker/verifier definitions and plan contract are unchanged with git diff --exit-code; declared permissions preserved, runtime enforcement not tested"},
+    {"sequence": 8, "event": "primary_review", "task": "B", "result": "Read all twelve scenario decisions and compared to revised skills; constraints and slot-vs-acceptance distinction are consistent. These are static scenario outcomes, not runtime negative tests"},
+    {"sequence": 9, "event": "primary_independent_work", "work": "Trace-checker self-check", "result": "Accepted valid synthetic trace; rejected budget overflow, duplicate dispatch and premature acceptance. This checks the recorder only, not native execution"},
+    {"sequence": 10, "event": "completion_notification", "task": "C", "session": "ses_e526f5d66ffekDe4sYXD5otx6C", "reported": "Thirty-eight local references resolve; documentation consistent"},
+    {"sequence": 11, "event": "primary_review", "task": "C", "result": "Read full report; compared audited descriptions to previously reviewed diff. No source changes; no broken local targets. Worker timestamps show C inspected after B's inspection ended, so dispatch before B notification is not a claim of overlapping B/C work"},
+    {"sequence": 12, "event": "accept_layer", "result": "All three independent evaluation assignments reviewed; outcomes accepted with runtime-versus-scenario and notification-versus-work-interval limits"}
+  ]
+}

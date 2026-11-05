@@ -2,7 +2,7 @@
 type: North Task
 north_schema: north-plan-v1
 id: T01
-task_status: pending
+task_status: done
 depends_on: []
 agent: north-worker
 write_scope: [assets/skills/north-execute/SKILL.md, assets/skills/subagent-usage/SKILL.md]
@@ -28,11 +28,11 @@ Make compatible, worthwhile concurrent dispatch the clear preference, using conc
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
-Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Dispatch/session: `ses_e5274772afferJNhUXFBIdp2PJ`, completed.
+Checkout/branch/base commit: `/Users/stamatis/Documents/projects/north` / `main` / `6d548be`; shared checkout, primary plan edits disjoint from worker scope.
+Changed files: Both scoped execution/delegation SKILL.md files.
+Validation: Worker scoped diff check and Ruby YAML/unchanged-header/four-link check passed. Primary full diff review confirms retained default cap, layer barrier, native permissions, serialized acceptance and useful-overlap guidance.
+Review/integration: Accepted after primary Ruby metadata/link check and staged diff check passed; committed on source main as `d32898f`. Behavioral evidence follows in T03.
 Blockers: None known.
 
 ## History
