@@ -53,7 +53,7 @@ Non-goals: raising the default limit, permitting nested worker delegation, intro
 | T01 | [Strengthen execution/delegation guidance](tasks/T01-execution-guidance.md) | — | 1 | done |
 | T02 | [Align tool instructions and docs](tasks/T02-integration-surfaces.md) | T01 | 2 | done |
 | T03 | [Evaluate concurrent execution behavior](tasks/T03-behavioral-evaluation.md) | T01, T02 | 3 | done |
-| T04 | [Verify integrated outcome](tasks/T04-verification.md) | T01, T02, T03 | 4 | pending |
+| T04 | [Verify integrated outcome](tasks/T04-verification.md) | T01, T02, T03 | 4 | done |
 
 This change is intentionally a dependency chain: the integration wording consumes the revised skill contract, and evaluations consume the combined instructions. Artificial parallel tasks would contradict the goal of useful independence.
 
@@ -71,9 +71,11 @@ This change is intentionally a dependency chain: the integration wording consume
 - Source branch/base: `main` / `e0f3244`; working tree clean at planning start.
 - Prior knowledge: [OKF adoption memory](../../memories/open-knowledge-format.md), checked against current owners/contracts. New records use the OKF plan layout; the earlier completed plan remains legacy.
 - No matching prior plan, generated preference skills, active OpenSpec changes or main OpenSpec requirements were found. No external task synchronization required.
-- Active layer: 3 (T03), frozen. Execution started at `6d548be`, clean `main`; T01/T02 accepted as `d32898f`/`9f5f7ca`. Small sequential instruction edits use the shared source checkout with disjoint primary plan/worker scopes; no worktrees are needed. Evaluations use isolated temporary fixtures. Only the primary edits this plan and commits reviewed work.
+- Active layer: none; T01–T04 complete. T01/T02 accepted as `d32898f`/`9f5f7ca`; T03 evidence accepted and committed as `ba1e662`. Execution started at `6d548be`, clean `main`. Shared source checkout used for small sequential edits; no worktrees created. All evaluation workers and final verifier finished; implementation is integrated on source `main`.
 - Planning validation: Ruby Psych parsed concept/task metadata and source records; four unique tasks form an acyclic four-layer graph, task table states/layers agree, and 43 local Markdown links resolve. An initial validation-script table-cell indexing error was corrected; the plan required no graph change. Behavioral checks belong to T03, not this planning phase.
-- Next command: `/north-execute parallel-execution` (suggested only).
+- Final validation: [Evaluation report](../../evaluations/parallel-execution/report.md) retains native dispatch evidence, exact inputs/outputs and guidance. Replay, three rejection controls, source/hash and UTC checks, JSON/YAML, 58 links, graph/state, unchanged permissions/contract and legacy regression passed. Independent T04 review found no blocking issues. Installer/runtime unchanged; broad installer suite not rerun.
+- Coverage limits: A/B work overlap demonstrated; C dispatch preceded B's completion notification but B/C inspection intervals did not overlap. Twelve boundary cases are static analysis. No live Claude, independent exported host log, baseline improvement or speed/cost claim.
+- Next command: `/north-save parallel-execution` (suggested only; not run).
 
 [^execution]: [north-execute](../../../assets/skills/north-execute/SKILL.md), current layer dispatch and review lifecycle.
 [^delegation]: [subagent-usage](../../../assets/skills/subagent-usage/SKILL.md), concurrency, isolation and ownership rules.

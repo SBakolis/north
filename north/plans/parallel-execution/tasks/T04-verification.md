@@ -2,7 +2,7 @@
 type: North Task
 north_schema: north-plan-v1
 id: T04
-task_status: pending
+task_status: done
 depends_on: [T01, T02, T03]
 agent: north-verifier
 write_scope: []
@@ -27,13 +27,15 @@ Read-only acceptance review of the combined instructions, documentation and obse
 
 ## Execution
 
-Dispatch/session: Not dispatched.
-Checkout/branch/base commit: Not assigned.
+Dispatch/session: `ses_e526b0977ffe0dPbbqlJkpCsac`, completed read-only review; T01–T03 accepted.
+Checkout/branch/base commit: Shared source `/Users/stamatis/Documents/projects/north` / `main` / `ba1e662`; no workers active.
 Changed files: None.
-Validation: None.
-Review/integration: Not reviewed.
+Validation: Verifier inspected implementation and retained criteria, prompts, trace, outputs and replay; no actionable blocking findings and no additional checks required. Primary previously passed replay/rejection controls, source/hash/UTC checks, JSON/YAML, 58 links, graph/state, permission preservation and legacy regression.
+Review/integration: Primary accepted the read-only review after checking it against the retained evidence and prior successful checks. Implementation and evaluation are integrated on source main through `ba1e662`; no worktrees or active workers remain. Review supports bounded native initial concurrency and refill notification ordering, not overlapping B/C work, runtime negative-case enforcement, live Claude or speedup claims.
 Blockers: None known.
 
 ## History
 
 Created during planning; no implementation started.
+
+Execution: running → needs-review → done after independent review and primary acceptance; no repairs required.
