@@ -46,6 +46,10 @@ proceed without these commands.
 
 ## Delegation and delivery
 
+Before substantial execution, the primary should look for compatible independent
+work and prefer useful concurrent progress through `subagent-usage` when installed.
+This does not authorize workers to delegate further or start a pipeline phase.
+
 Use OpenCode's native Task tool, not separate OpenCode processes. Load
 `subagent-usage` when installed for delegation and checkout integration.
 Use `north-execute` for a saved pipeline's lifecycle. When creating or revising

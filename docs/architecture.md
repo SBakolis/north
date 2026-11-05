@@ -121,9 +121,12 @@ single-file and legacy index-led plans can resume in place without being rewritt
 
 `/north-execute <feature-slug-or-plan-path>` checks relevant memories, validates
 the DAG, and freezes its topological layers before dispatch. The primary agent
-launches independent tasks within the current layer through the tool's native
-delegation tool, with a default concurrency limit of two. It reviews results and
-verifies the whole layer before starting the next. Tasks move through `pending`,
+launches compatible independent tasks within the current layer through the tool's
+native delegation tool before waiting for results, with a default concurrency
+limit of two (or the explicit plan limit). As workers finish, it considers queued
+same-layer tasks for free slots after rechecking conflicts and prerequisites;
+essential review/integration may take priority. It reviews results and verifies
+the whole layer before starting the next. Tasks move through `pending`,
 `running`, `needs-review`, `done`, or `blocked`; a worker report alone cannot mark
 a task done. Changes to the graph require updated layers before further dispatch.
 See [execution plans](plan-format.md) for the templates, evidence requirements,
@@ -139,7 +142,9 @@ read-only and does nothing when no memories exist. All these paths honor the
 project's configured North directory.
 
 Subagents share the checkout unless isolation is arranged separately. Parallel
-writes must have disjoint scopes; overlapping changes run sequentially. North
+writes must have disjoint scopes and compatible shared resources; disjoint paths
+alone do not remove conflicts. Shared immutable reads may overlap, while primary
+acceptance, progress updates, and Git integration remain serialized. North
 has no executable scheduler, subprocess runner, machine-validated plan schema,
 approval database, automatic worktree management, or integration service. Plan
 files persist progress and evidence; they do not provide automatic crash recovery.

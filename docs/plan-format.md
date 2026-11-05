@@ -31,8 +31,13 @@ The workflow is divided among these owners:
 | Verified implementation knowledge | [north-save](../assets/skills/north-save/SKILL.md) |
 
 For `T01 → {T02, T03} → T04`, execution verifies T01, runs the compatible tasks
-T02 and T03 concurrently, and verifies both before starting T04. The execution
-skill defines blocked-task handling and the boundary between layers. Standalone
+T02 and T03 concurrently before waiting for either, and verifies both before
+starting T04. `Max parallel` defaults to two; explicit limits are honored. With
+three compatible siblings at limit two, a freed slot may admit the third from
+the same frozen layer after rechecking prerequisites and conflicts, including
+pending review/integration. This never unlocks a later layer early. The execution
+skill defines dispatch, blocked-task handling, and layer barriers; delegation
+guidance owns concurrency safety and serialized primary integration. Standalone
 delegation can use the shared contract without enabling the pipeline.
 
 Plans preserve evidence for agent-led continuation. North does not provide an

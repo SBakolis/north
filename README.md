@@ -68,8 +68,10 @@ Enable **North pipeline** in the installer's **Workflow** category, then run:
 `/north-plan` clarifies the request, consults relevant memories, and researches
 similar implementations, best practices, and useful libraries. It saves a linked
 Markdown plan under `north/plans/<feature-slug>/`, with acceptance checks,
-dependencies, and task statuses. `/north-execute` implements independent tasks
-with subagents, verifies each dependency layer, and then starts the next layer.
+dependencies, and task statuses. `/north-execute` launches compatible independent
+tasks concurrently within a dependency layer (default limit two), considers queued
+same-layer work as slots free up, and verifies the whole layer before starting the
+next. Explicit limits and conflicts still constrain concurrency.
 `/north-save` records verified implementation knowledge in `north/memories/` for
 future tasks. Each command suggests the next command; after saving, start the
 next feature with `/north-plan`. Execute and save also accept a plan path.
