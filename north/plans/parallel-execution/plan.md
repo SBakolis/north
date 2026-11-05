@@ -75,7 +75,8 @@ This change is intentionally a dependency chain: the integration wording consume
 - Planning validation: Ruby Psych parsed concept/task metadata and source records; four unique tasks form an acyclic four-layer graph, task table states/layers agree, and 43 local Markdown links resolve. An initial validation-script table-cell indexing error was corrected; the plan required no graph change. Behavioral checks belong to T03, not this planning phase.
 - Final validation: [Evaluation report](../../evaluations/parallel-execution/report.md) retains native dispatch evidence, exact inputs/outputs and guidance. Replay, three rejection controls, source/hash and UTC checks, JSON/YAML, 58 links, graph/state, unchanged permissions/contract and legacy regression passed. Independent T04 review found no blocking issues. Installer/runtime unchanged; broad installer suite not rerun.
 - Coverage limits: A/B work overlap demonstrated; C dispatch preceded B's completion notification but B/C inspection intervals did not overlap. Twelve boundary cases are static analysis. No live Claude, independent exported host log, baseline improvement or speed/cost claim.
-- Next command: `/north-save parallel-execution` (suggested only; not run).
+- Implementation memory: [Parallel execution](../../memories/parallel-execution.md), saved after completion against `fff4c60`; records implementation, decisions, validation and coverage limits.
+- Next cycle: `/north-plan <next feature prompt>` (suggested only).
 
 [^execution]: [north-execute](../../../assets/skills/north-execute/SKILL.md), current layer dispatch and review lifecycle.
 [^delegation]: [subagent-usage](../../../assets/skills/subagent-usage/SKILL.md), concurrency, isolation and ownership rules.
