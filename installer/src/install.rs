@@ -1871,11 +1871,9 @@ mod tests {
         let (_temp, repo, config) = fixture();
         add_claude(&repo);
         fs::create_dir_all(&config).unwrap();
-        symlink(
-            repo.join("assets/claude/instructions/core.md"),
-            config.join("CLAUDE.md"),
-        )
-        .unwrap();
+        let user_instructions = repo.join("user-instructions.md");
+        fs::write(&user_instructions, "my rules\n").unwrap();
+        symlink(&user_instructions, config.join("CLAUDE.md")).unwrap();
         assert!(
             Installation::load(&repo, Tool::Claude, &config)
                 .unwrap()
@@ -1884,6 +1882,35 @@ mod tests {
         );
         assert!(!exists(&config.join(STATE)).unwrap());
         assert!(!exists(&config.join("agents")).unwrap());
+        assert_eq!(
+            fs::read_link(config.join("CLAUDE.md")).unwrap(),
+            user_instructions
+        );
+        assert_eq!(fs::read_to_string(user_instructions).unwrap(), "my rules\n");
+    }
+
+    #[test]
+    fn claude_merge_adopts_north_owned_instructions_without_state() {
+        let (_temp, repo, config) = fixture();
+        add_claude(&repo);
+        fs::create_dir_all(&config).unwrap();
+        let source = repo
+            .canonicalize()
+            .unwrap()
+            .join("assets/claude/instructions/core.md");
+        let original = fs::read_to_string(&source).unwrap();
+        symlink(&source, config.join("CLAUDE.md")).unwrap();
+        Installation::load(&repo, Tool::Claude, &config)
+            .unwrap()
+            .apply_with_merge(&BTreeSet::new(), true)
+            .unwrap();
+        assert!(!config.join("CLAUDE.md").is_symlink());
+        assert_eq!(
+            fs::read_to_string(config.join("CLAUDE.md")).unwrap(),
+            format!("@{}\n", source.display())
+        );
+        assert_eq!(fs::read_to_string(source).unwrap(), original);
+        assert!(exists(&config.join(STATE)).unwrap());
     }
 
     #[test]
