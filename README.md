@@ -152,6 +152,9 @@ Engineering methods:
 
 Project context and delivery:
 
+- [credentials](assets/skills/credentials/SKILL.md): find keys for user-requested
+  third-party services in `KEYS.md` at the active harness's root configuration
+  directory, without exposing secret values.
 - [explain-code](assets/skills/explain-code/SKILL.md): explain existing code in
   standard technical English with verified line references and symbol definitions.
 - [unity-ui](assets/skills/unity-ui/SKILL.md): author Unity UI in the Editor as
